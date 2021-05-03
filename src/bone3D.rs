@@ -45,7 +45,7 @@ impl Bone3D{
         return self.end - self.start;
     }
 
-    pub fn getGlobalPitchDegs(&self) -> cgmath::Deg<f32>{
+    pub fn get_global_pitch_degs(&self) -> cgmath::Deg<f32>{
         //This was the original code,
             //return  Vec3f.getDirectionUV(mStartLocation, mEndLocation).getGlobalPitchDegs();
         
@@ -56,7 +56,7 @@ impl Bone3D{
     //Wait... I think I know what it wants now I'll need to get everything converted over to
     //see. Alright this might be where quaternion come in as I cant get the angle of a particlure
     //dimesnions very easily from cgmath.
-    pub fn getGlobalYawDegs(&self) -> cgmath::Deg<f32>{
+    pub fn get_global_yaw_degs(&self) -> cgmath::Deg<f32>{
         //This was the original code,
             //return  Vec3f.getDirectionUV(mStartLocation, mEndLocation).getGlobalPitchDegs();
         

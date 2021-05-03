@@ -1,8 +1,12 @@
 pub mod bone;
+#[allow(non_snake_case)] 
 pub mod bone3D;
 pub mod joint;
+#[allow(non_snake_case)]
 pub mod joint3D;
 pub mod chain;
+#[allow(non_snake_case)]
+pub mod chain3D;
 pub mod structure;
 
 #[cfg(test)]

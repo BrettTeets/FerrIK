@@ -1,6 +1,7 @@
-use cgmath::{Vector3, Deg, InnerSpace};
+use cgmath::{Vector3, InnerSpace};
 use crate::{joint};
 
+#[allow(dead_code)]
 const MIN_CONSTRAINT_ANGLE_DEGS: cgmath::Deg<f32> = cgmath::Deg(0.0); //fully constrained
 const MAX_CONSTRAINT_ANGLE_DEGS: cgmath::Deg<f32> = cgmath::Deg(180.0); //unconstrained.
 
