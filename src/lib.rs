@@ -1,5 +1,6 @@
-pub mod fabrik_bone;
-pub mod fabrik_joint;
+pub mod bone;
+pub mod joint;
+pub mod chain;
 
 #[cfg(test)]
 mod tests {
