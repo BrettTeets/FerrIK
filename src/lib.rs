@@ -1,6 +1,7 @@
 pub mod bone;
 pub mod joint;
 pub mod chain;
+pub mod structure;
 
 #[cfg(test)]
 mod tests {
