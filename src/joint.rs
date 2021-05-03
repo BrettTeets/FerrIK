@@ -3,6 +3,7 @@ pub trait Joint {
     fn set(&self, sourceJoint: Joint3D);
 }
 
+#[derive(Clone)]
 pub struct Joint3D{
     //limits in degrees of how far things can rotate, they were defaulted to 180 in caliko.
     rotor_constraint: cgmath::Deg<f32>,
@@ -19,6 +20,12 @@ pub struct Joint3D{
 }
 
 impl Joint3D{
+    pub fn new()-> Self{
+        return Self{
+
+        }
+    }
+
     pub fn SetAsBallJoint(&mut self, constraint_degrees: cgmath::Deg<f32>){
 
         //TODO Check if constrained degrees are within 180.
@@ -63,6 +70,7 @@ impl Joint for Joint3D{
 }
 
 //This was pulled over directly from the caliko version.
+#[derive(Clone)]
 pub enum JointType {
     Ball,
     GlobalHinge,

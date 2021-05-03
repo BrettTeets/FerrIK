@@ -1,0 +1,55 @@
+ /**
+     * mJoint	The joint attached to this FabrikBone3D.
+     * <p>
+     * Each bone has a single FabrikJoint3D which controls the angle to which the bone is
+     * constrained with regard to the previous (i.e. earlier / closer to the base) bone in its chain.
+     * <p>
+     * By default, a joint is not constrained (that is, it is free to rotate up to 180
+     * degrees in a clockwise or anticlockwise direction), however a joint may be
+     * constrained by specifying constraint angles via the
+     * {@link #setBallJointConstraintDegs(float)}, {@link #setHingeJointClockwiseConstraintDegs(float)},
+     * and {@link #setHingeJointAnticlockwiseConstraintDegs(float)} methods.
+     * <p>
+     * You might think that surely a bone has two joints, one at the beginning and one at
+     * the end - however, consider an empty chain to which you add a single bone: It has
+     * a joint at its start, around which the bone may rotate (and which it may optionally
+     * be constrained).
+     * <p>
+     * When a second bone is added to the chain, the joint at the start of this second bone
+     * controls the rotational constraints with regard to the first ('base') bone, and so on.
+     * <p>
+     * During the forward (tip-to-base) pass of the FABRIK algorithm, the end effector is
+     * unconstrained and snapped to the target. As we then work from tip-to-base each
+     * previous bone is constrained by the joint in the outer bone until we reach the base,
+     * at which point, if we have a fixed base location, then we snap the base bone start
+     * location to it, or if we do not have a fixed base location we project the new start
+     * location along the reverse direction of the bone by its length.
+     * <p>
+     * During the backward (base-to-tip) pass, each bone is constrained by the joint angles
+     * relative to the bone before it, ensuring that all constraints are enforced.
+     */
+    private FabrikJoint3D mJoint = new FabrikJoint3D();
+
+I dont know about this bit.
+ /**
+     * Specify the bone connection point of this bone.
+     * <p>
+     * This connection point property controls whether, when THIS bone connects to another bone in another chain, it does so at
+     * the start or the end of the bone we connect to.
+     * <p>
+     * The default is BoneConnectionPoint3D.END.
+     * 
+     * @param	bcp	The bone connection point to use (BoneConnectionPoint3.START or BoneConnectionPoint.END).
+     * 
+     */
+    public void setBoneConnectionPoint(BoneConnectionPoint bcp) { mBoneConnectionPoint = bcp; }
+    /** 
+     * Return the bone connection point for THIS bone, which will be either BoneConnectionPoint.START or BoneConnectionPoint.END.
+     * <p>
+     * This connection point property controls whether, when THIS bone connects to another bone in another chain, it does so at
+     * the start or the end of the bone we connect to.
+     *
+     * @return	The bone connection point for this bone.
+     */
+    public BoneConnectionPoint getBoneConnectionPoint() { return mBoneConnectionPoint; }
+
