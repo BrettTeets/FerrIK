@@ -1,6 +1,7 @@
 pub mod bone;
 pub mod bone3D;
 pub mod joint;
+pub mod joint3D;
 pub mod chain;
 pub mod structure;
 

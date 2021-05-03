@@ -53,3 +53,28 @@ I dont know about this bit.
      */
     public BoneConnectionPoint getBoneConnectionPoint() { return mBoneConnectionPoint; }
 
+on the different types of joints.
+/** 
+	 * The type of joint that this object represents.
+	 *
+	 * <ul><li><strong>JointType.BALL</strong> - A ball joint (or 'ball and socket joint'). This type of joint
+	 * has a single contraint angle which is the extent to which it can rotate with regard to the
+	 * direction of the previous bone in a chain. Alternatively, it may be set to 180 degrees, which
+	 * is no constraint, or 0 degrees, which is entirely contrained.</li>
+	 * <li><strong>JointType.GLOBAL_HINGE</strong> - A global hinge joint constrains rotation of the
+	 * joint about a global direction unit vector, that is, a direction specified in world-space.
+	 * A hinge joint is like the hinge on a door - unlike a ball joint it has a clockwise and
+	 * anti-clockwise set of constraints where, both of these directions are specified in the
+	 * range 0 to 180 degrees.</li>
+	 * <li><strong>JointType.LOCAL_HINGE</strong> - A local hinge is similar to a global hinge, but in
+	 * a local hinge the hinge rotation axis is specified in local space, that is, relative to the
+	 * direction of the bone rather than to a 'world-space' global absolute direction. A local 
+	 * <p>
+	 * A local hinge in the human body would be analogous to elbow or knee joints, which are
+	 * constrained about the perpendicular axis of the arm or leg they're attached to. However,
+	 * unlike an elbow or knee joint, a local hinge may rotate up to a maximum of 180 degrees in
+	 * both clockwise and anti-clockwise directions unless the mHingeClockwiseConstraintDegs and/or
+	 * mHingeAntiClockwiseConstraintDegs properties have been set to lower values.</li>
+	 * </ul>
+	 */ 
+

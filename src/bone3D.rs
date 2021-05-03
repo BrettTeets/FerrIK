@@ -1,4 +1,4 @@
-use crate::{bone, joint};
+use crate::{bone, joint3D};
 use cgmath::{Vector3, InnerSpace};
 
 #[derive(Clone)]
@@ -6,7 +6,7 @@ pub struct Bone3D{
     bone_connection_point: bone::BoneConnectionPoint, //this is where another bone, in a different chain will attach at.
     //bone connection point sounds like it might be how this bone connects to another in a different chain rather than
     //how that other bone connects to itself. idk. Toss the reading material in useful text.
-    joint: joint::Joint3D, //type of joint ball, hinge etc. //tons of info in the original on this. stuck it in useful text page.
+    joint: joint3D::Joint3D, //type of joint ball, hinge etc. //tons of info in the original on this. stuck it in useful text page.
     start: Vector3<f32>,
     end: Vector3<f32>,
     id: usize, 
@@ -20,7 +20,7 @@ impl Bone3D{
         let length = (end - start).magnitude();
         return Self{
             bone_connection_point: bone::BoneConnectionPoint::End,
-            joint: joint::Joint3D::new(),
+            joint: joint3D::Joint3D::new(),
             start,
             end,
             id, 
