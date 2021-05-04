@@ -1,0 +1,40 @@
+private static final long serialVersionUID = 1L;
+	
+	private static final String NEW_LINE = System.lineSeparator();
+
+    	/** The name of this FabrikChain3D object.
+	 * objects are zero indexed I am dropping this feature entirely.
+	 * 
+	 * @see  #setName
+	 * @see  #getName
+	 */
+	private String mName;
+
+/** 
+	 * Set the name of this chain, capped to 100 characters if required.
+	 * 
+	 * @param	name	The name to set.
+	 */
+	@Override
+	public void setName(String name) { mName = Utils.getValidatedName(name); }
+
+    /**
+	 * Set the colour of all bones in this chain to the specified colour.
+	 * 
+	 * @param	colour	The colour to set all bones in this chain.
+	 */
+	public void setColour(Colour4f colour)
+	{			
+		for (FabrikBone3D aBone : this.my_chain)
+		{
+			aBone.setColour(colour);
+		}
+	}
+
+    /**
+	 * Return the name of this IK chain.
+	 *
+	 * @return	The name of this IK chain.
+	 */
+	@Override
+	public String getName() { return mName; }

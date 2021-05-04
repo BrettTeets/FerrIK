@@ -102,7 +102,7 @@ pub trait Chain{
 	fn set_min_iteration_change(&mut self, min_iteration_change: f32);
 	
     //sets the distance that counts as close enough to be solved.
-	fn set_solve_distance_threshold(&mut self, solve_distance: f32);	
+	fn set_solve_distance_threshold(&mut self, solve_distance: f32) -> Result<(), FerrikErrors>;	
 	
 	//this was set name in the original. I am changing it to set ID.
     // I also dont want people to change the id after creation as that would break the API I
@@ -120,4 +120,8 @@ pub trait Chain{
 	
     //this calculates the length of the bone which is accessed by another method if you need it.
 	fn update_chain_length(&self);	
+}
+
+pub enum FerrikErrors{
+	UnsolvableRequirement,
 }
