@@ -38,3 +38,205 @@ private static final long serialVersionUID = 1L;
 	 */
 	@Override
 	public String getName() { return mName; }
+
+    /**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public float getSolveDistanceThreshold() {
+		return this.solve_distance_threshold
+;
+	}
+
+    /**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public int getMaxIterationAttempts() {
+		return this.mMaxIterationAttempts;
+	}
+	
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	public float getMinIterationChange() {
+		return this.mMinIterationChange;
+	}
+
+    /**
+	 * Return the List%lt;FabrikBone3D%gt; which comprises the actual IK chain of this FabrikChain3D object.
+	 *  
+	 * @return	The List%lt;FabrikBone3D%gt; which comprises the actual IK chain of this FabrikChain3D object.
+	 */
+	@Override
+	public List<FabrikBone3D> getChain() { return my_chain; }
+	
+	/**
+	 * Return the current length of the IK chain.
+	 * <p>
+	 * This method does not dynamically re-calculate the length of the chain - it merely returns the previously
+	 * calculated chain length, which gets updated each time a bone is added or removed from the chain. However,
+	 * as the chain length is updated whenever necessary this should be fine.
+	 * <p>
+	 * If you need a calculated-on-the-fly value for the chain length, then use the getLiveChainLength() method.
+	 * 
+	 * @return	The pre-calculated length of the IK chain as stored in the my_chainLength property.
+	 */
+	@Override
+	public float getChainLength() { return my_chainLength; }
+
+      @Override
+  public int hashCode() {
+    final int prime = 31;
+    int result = 1;
+    result = prime * result + ((mBaseboneConstraintType == null) ? 0 : mBaseboneConstraintType.hashCode());
+    result = prime * result + ((mBaseboneConstraintUV == null) ? 0 : mBaseboneConstraintUV.hashCode());
+    result = prime * result + ((mBaseboneRelativeConstraintUV == null) ? 0 : mBaseboneRelativeConstraintUV.hashCode());
+    result = prime * result
+        + ((mBaseboneRelativeReferenceConstraintUV == null) ? 0 : mBaseboneRelativeReferenceConstraintUV.hashCode());
+    result = prime * result + ((my_chain == null) ? 0 : my_chain.hashCode());
+    result = prime * result + Float.floatToIntBits(my_chainLength);
+    result = prime * result + mConnectedBoneNumber;
+    result = prime * result + mConnectedChainNumber;
+    result = prime * result + Float.floatToIntBits(mConstraintLineWidth);
+    result = prime * result + Float.floatToIntBits(mCurrentSolveDistance);
+    result = prime * result + ((mEmbeddedTarget == null) ? 0 : mEmbeddedTarget.hashCode());
+    result = prime * result + ((mFixedBaseLocation == null) ? 0 : mFixedBaseLocation.hashCode());
+    result = prime * result + (mFixedBaseMode ? 1231 : 1237);
+    result = prime * result + ((mLastBaseLocation == null) ? 0 : mLastBaseLocation.hashCode());
+    result = prime * result + ((mLastTargetLocation == null) ? 0 : mLastTargetLocation.hashCode());
+    result = prime * result + mMaxIterationAttempts;
+    result = prime * result + Float.floatToIntBits(mMinIterationChange);
+    result = prime * result + ((mName == null) ? 0 : mName.hashCode());
+    result = prime * result + Float.floatToIntBits(solve_distance_threshold);
+    result = prime * result + (mUseEmbeddedTarget ? 1231 : 1237);
+    return result;
+  }
+
+  @Override
+  public boolean equals(Object obj) {
+    if (this == obj) {
+      return true;
+    }
+    if (obj == null) {
+      return false;
+    }
+    if (getClass() != obj.getClass()) {
+      return false;
+    }
+    FabrikChain3D other = (FabrikChain3D) obj;
+    if (mBaseboneConstraintType != other.mBaseboneConstraintType) {
+      return false;
+    }
+    if (mBaseboneConstraintUV == null) {
+      if (other.mBaseboneConstraintUV != null) {
+        return false;
+      }
+    } else if (!mBaseboneConstraintUV.equals(other.mBaseboneConstraintUV)) {
+      return false;
+    }
+    if (mBaseboneRelativeConstraintUV == null) {
+      if (other.mBaseboneRelativeConstraintUV != null) {
+        return false;
+      }
+    } else if (!mBaseboneRelativeConstraintUV.equals(other.mBaseboneRelativeConstraintUV)) {
+      return false;
+    }
+    if (mBaseboneRelativeReferenceConstraintUV == null) {
+      if (other.mBaseboneRelativeReferenceConstraintUV != null) {
+        return false;
+      }
+    } else if (!mBaseboneRelativeReferenceConstraintUV.equals(other.mBaseboneRelativeReferenceConstraintUV)) {
+      return false;
+    }
+    if (my_chain == null) {
+      if (other.my_chain != null) {
+        return false;
+      }
+    } else if (!my_chain.equals(other.my_chain)) {
+      return false;
+    }
+    if (Float.floatToIntBits(my_chainLength) != Float.floatToIntBits(other.my_chainLength)) {
+      return false;
+    }
+    if (mConnectedBoneNumber != other.mConnectedBoneNumber) {
+      return false;
+    }
+    if (mConnectedChainNumber != other.mConnectedChainNumber) {
+      return false;
+    }
+    if (Float.floatToIntBits(mConstraintLineWidth) != Float.floatToIntBits(other.mConstraintLineWidth)) {
+      return false;
+    }
+    if (Float.floatToIntBits(mCurrentSolveDistance) != Float.floatToIntBits(other.mCurrentSolveDistance)) {
+      return false;
+    }
+    if (mEmbeddedTarget == null) {
+      if (other.mEmbeddedTarget != null) {
+        return false;
+      }
+    } else if (!mEmbeddedTarget.equals(other.mEmbeddedTarget)) {
+      return false;
+    }
+    if (mFixedBaseLocation == null) {
+      if (other.mFixedBaseLocation != null) {
+        return false;
+      }
+    } else if (!mFixedBaseLocation.equals(other.mFixedBaseLocation)) {
+      return false;
+    }
+    if (mFixedBaseMode != other.mFixedBaseMode) {
+      return false;
+    }
+    if (mLastBaseLocation == null) {
+      if (other.mLastBaseLocation != null) {
+        return false;
+      }
+    } else if (!mLastBaseLocation.equals(other.mLastBaseLocation)) {
+      return false;
+    }
+    if (mLastTargetLocation == null) {
+      if (other.mLastTargetLocation != null) {
+        return false;
+      }
+    } else if (!mLastTargetLocation.equals(other.mLastTargetLocation)) {
+      return false;
+    }
+    if (mMaxIterationAttempts != other.mMaxIterationAttempts) {
+      return false;
+    }
+    if (Float.floatToIntBits(mMinIterationChange) != Float.floatToIntBits(other.mMinIterationChange)) {
+      return false;
+    }
+    if (mName == null) {
+      if (other.mName != null) {
+        return false;
+      }
+    } else if (!mName.equals(other.mName)) {
+      return false;
+    }
+    if (Float.floatToIntBits(solve_distance_threshold) != Float.floatToIntBits(other.solve_distance_threshold)) {
+      return false;
+    }
+    if (mUseEmbeddedTarget != other.mUseEmbeddedTarget) {
+      return false;
+    }
+    return true;
+  }	
+
+  /**
+	 * Method used to move the base location of a chain relative to its connection point.
+	 * <p>
+	 * The assignment is made by reference so that this base location and the location where
+	 * we attach to the other chain are the same Vec3f object.
+	 * <p>
+	 * Note: If this chain is attached to another chain then this 'fixed' base location will be updated
+	 * as and when the connection point in the chain we are attached to moves.
+	 *
+	 * @param	baseLocation	The fixed base location for this chain.
+	 */
+	@Override
+	public void setBaseLocation(Vec3f baseLocation) { mFixedBaseLocation = baseLocation; }
+
+    

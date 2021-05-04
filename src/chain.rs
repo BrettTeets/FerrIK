@@ -84,22 +84,21 @@ pub trait Chain{
 	fn set_basebone_constraint_uv(&mut self, constraint_uv: Vector3<f32>);
 	
     //Sets the base location of this chain? How does that differ from the root bone?
-	fn set_base_location(&mut self, base_location: Vector3<f32>);	
+		//fn set_base_location(&mut self, base_location: Vector3<f32>);	
+		//removing it it doesn't do anything but directly set the value.
 	
     //toggles embedded target mode.
 	fn set_embedded_target_mode(&mut self, value: bool);
 	
     //toggles whether the base bone is fixed in position or can be dragged along.
-    //apparently this will crash if it is fixed to another chain and fixed mode is off.
-    //This has lots of ways to crash the program look into this one.
-	fn set_fixed_base_mode(&mut self, value: bool);	
+	fn set_fixed_base_mode(&mut self, value: bool) -> Result<(), FerrikErrors>;	
 	
 	//This is how many attempts will be made. Is this multiples of two to get the root back to start?
     //wait is not being multiples of two how this drags thie point along?
-	fn set_max_iteration_attempts(&mut self, max_iterations: usize);
+	fn set_max_iteration_attempts(&mut self, max_iterations: usize)  -> Result<(), FerrikErrors>;
 	
     //sets the minimum change between the end point and end effector before it gets called a stall.
-	fn set_min_iteration_change(&mut self, min_iteration_change: f32);
+	fn set_min_iteration_change(&mut self, min_iteration_change: f32) -> Result<(), FerrikErrors>;
 	
     //sets the distance that counts as close enough to be solved.
 	fn set_solve_distance_threshold(&mut self, solve_distance: f32) -> Result<(), FerrikErrors>;	
@@ -119,9 +118,10 @@ pub trait Chain{
 	fn update_embedded_target(&mut self, new_embedded_target: Vector3<f32>);	
 	
     //this calculates the length of the bone which is accessed by another method if you need it.
-	fn update_chain_length(&self);	
+	fn update_chain_length(&mut self);	
 }
 
 pub enum FerrikErrors{
 	UnsolvableRequirement,
+	MultipleChainIssues,
 }
