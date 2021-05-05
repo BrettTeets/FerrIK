@@ -7,8 +7,8 @@ pub struct Bone3D{
     //bone connection point sounds like it might be how this bone connects to another in a different chain rather than
     //how that other bone connects to itself. idk. Toss the reading material in useful text.
     joint: joint3D::Joint3D, //type of joint ball, hinge etc. //tons of info in the original on this. stuck it in useful text page.
-    start: Vector3<f32>,
-    end: Vector3<f32>,
+    pub start: Vector3<f32>,
+    pub end: Vector3<f32>,
     id: usize, 
     length: f32, //is calculated in the constructor and used to keep everything in line. 
     //original length had some validation code to ensure it wasn't zero.

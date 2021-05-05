@@ -325,4 +325,146 @@
 	 */
 	private boolean mUseEmbeddedTarget = false;
 
+    /**
+	 * Add a bone to the end of this IK chain of this FabrikChain3D object.
+	 * <p>
+	 * This chain's {@link my_chainLength} property is updated to take into account the length of the
+	 * new bone added to the chain.
+	 * <p>
+	 * In addition, if the bone being added is the very first bone, then this chain's
+	 * {@link mFixedBaseLocation} property is set from the start joint location of the bone.
+	 * 
+	 * @param	bone	The FabrikBone3D object to add to this FabrikChain3D.
+	 * @see		#my_chainLength
+	 * @see		#mFixedBaseLocation
+	 */
+	@Override
+	public void addBone(FabrikBone3D bone)
+	{
+		// Add the new bone to the end of the ArrayList of bones
+		my_chain.add(bone);
+
+		// If this is the basebone...
+		if (my_chain.size() == 1)
+		{
+			// ...then keep a copy of the fixed start location...
+			mFixedBaseLocation.set( bone.getStartLocation() );
+			
+			// ...and set the basebone constraint UV to be around the initial bone direction
+			mBaseboneConstraintUV = bone.getDirectionUV();
+		}
+		
+		// Increment the number of bones in the chain and update the chain length
+		updateChainLength();
+	}
+
+    /**
+	 * Return the location of the end effector in the IK chain.
+	 * <p>
+	 * Regardless of how many bones are contained in the chain, the end effector is always the end location
+	 * of the final bone in the chain. 
+	 * 
+	 * @return	The location of this chain's end effector.
+	 */
+	@Override
+	public Vec3f getEffectorLocation() { return my_chain.get(my_chain.size()-1).getEndLocation(); }
+
+    /**
+	 * Return the live calculated length of the chain.
+	 * 
+	 * Typically, the getChainLength() can be called which returns the length of the chain as updated /
+	 * recalculated when a bone is added or removed from the chain (which is significantly faster as it
+	 * doesn't require recalculation), but sometimes it may be useful to get the definitive most
+	 * up-to-date chain length so you can check if operations being performed have altered the chain
+	 * length - hence this method.
+	 * 
+	 * @return	The 'live' (i.e. calculated from scratch) length of the chain.
+	 */
+	public float getLiveChainLength()
+	{
+		float length = 0.0f;		
+		for (FabrikBone3D aBone : this.my_chain)
+		{  
+			length += aBone.liveLength();
+		}		
+		return length;
+	}	
+
+    /**
+	 * Set a directional constraint for the basebone.
+	 * <p>
+	 * This method constrains the <strong>basebone</strong> (<em>only</em>) to a global direction unit vector.
+	 * <p>
+	 * Attempting to set the basebone constraint when the bone has a basebone constraint type of NONE or providing
+	 * a constraint vector of zero will result will result in an IllegalArgumentException being thrown.
+	 * 
+	 * @param	constraintUV	The direction unit vector to constrain the basebone to.
+	 * @see		au.edu.federation.caliko.FabrikJoint3D#setBallJointConstraintDegs(float angleDegs)
+	 * @see		au.edu.federation.caliko.FabrikJoint3D#setHingeJointClockwiseConstraintDegs(float)
+	 * @see		au.edu.federation.caliko.FabrikJoint3D#setHingeJointAnticlockwiseConstraintDegs(float)
+	 */
+	@Override
+	public void setBaseboneConstraintUV(Vec3f constraintUV)
+	{
+		if (mBaseboneConstraintType == BaseboneConstraintType3D.NONE)
+		{
+			throw new IllegalArgumentException("Specify the basebone constraint type with setBaseboneConstraintTypeCannot specify a basebone constraint when the current constraint type is BaseboneConstraint.NONE.");
+		}
+		
+		// Validate the constraint direction unit vector
+		Utils.validateDirectionUV(constraintUV);
+		
+		// All good? Then normalise the constraint direction and set it
+		constraintUV.normalise();
+		mBaseboneConstraintUV.set(constraintUV);
+	}
+
+    /**
+	 * Connect this chain to the specified bone in the specified chain in the provided structure.
+	 * <p>
+	 * In order to connect this chain to another chain, both chains must exist within the same structure.
+	 * <p>
+	 * If the structure does not contain the specified chain or bone then an IllegalArgumentException is thrown.
+	 * 
+	 * @param	structure	The structure which contains the chain which contains the bone to connect to.
+	 * @param	chainNumber	The zero-indexed number of the chain in the structure to connect to.
+	 * @param	boneNumber	The zero-indexed number of the bone in the chain to connect to.
+	 */
+	public void connectToStructure(FabrikStructure3D structure, int chainNumber, int boneNumber)
+	{
+		// Sanity check chain exists
+		int numy_chains = structure.getNumy_chains();
+		if (chainNumber > numy_chains) { 
+		  throw new IllegalArgumentException("Structure does not contain a chain " + chainNumber + " - it has " + numy_chains + " chains."); 
+		}
+		
+		// Sanity check bone exists
+		int numBones = structure.getChain(chainNumber).getNumBones();
+		if (boneNumber > numBones) { 
+		  throw new IllegalArgumentException("Chain does not contain a bone " + boneNumber + " - it has " + numBones + " bones."); 
+		}
+		
+		// All good? Set the connection details
+		mConnectedChainNumber = chainNumber;
+		mConnectedBoneNumber  = boneNumber;		
+	}
+
+    /**
+	 * Solve this IK chain for the current embedded target location.
+	 * 
+	 * The embedded target location can be updated by calling updateEmbeddedTarget(Vec3f).
+	 * 
+	 * @return The distance between the end effector and the chain's embedded target location for our best solution.
+	 */
+	@Override
+	public float solveForEmbeddedTarget()
+	{
+		if (mUseEmbeddedTarget) { 
+		  return solveForTarget(mEmbeddedTarget); 
+		}
+		else { 
+		  throw new RuntimeException("This chain does not have embedded targets enabled - enable with setEmbeddedTargetMode(true)."); 
+		}
+	}
+
     

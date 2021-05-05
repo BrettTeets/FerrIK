@@ -239,4 +239,234 @@ private static final long serialVersionUID = 1L;
 	@Override
 	public void setBaseLocation(Vec3f baseLocation) { mFixedBaseLocation = baseLocation; }
 
+    /**
+	 * Return the basebone relative unit vector of this chain.
+	 * 
+	 * This direction is updated by the FabrikStructure3D when this chain is connected to another chain. There is
+	 * no other possible way of doing it as we have no knowledge of other chains, but the structure does, allowing
+	 * us to calculate this relative constraint UV.
+	 *  
+	 * @return The basebone relative constraint UV as updated (on solve) by the structure containing this chain.
+	 */
+	@Override
+	public Vec3f getBaseboneRelativeConstraintUV() { return mBaseboneRelativeConstraintUV; }
+
+    /**
+	 * Return the basebone constraint type of this chain.
+	 *
+	 * @return	The basebone constraint type of this chain.
+	 */
+	@Override
+	public BaseboneConstraintType3D getBaseboneConstraintType() { return mBaseboneConstraintType; }
+
+    /**
+	 * Method to set the line width (in pixels) with which to draw any constraint lines.
+	 * <p>
+	 * Valid values are 1.0f to 32.0f inclusive, although the OpenGL standard specifies that only line widths of 1.0f are guaranteed to work.
+	 * Values outside of this range will result in an IllegalArgumentException being thrown.
+	 * 
+	 * @param	lineWidth	The width of the line used to draw constraint lines.
+	 */
+	public void setConstraintLineWidth(float lineWidth)
+	{
+		Utils.validateLineWidth(lineWidth);
+		mConstraintLineWidth = lineWidth;
+	}
+
+    /**
+	 * Get the directional constraint of the basebone.
+	 * <p>
+	 * If the basebone is not constrained then a RuntimeException is thrown. If you wish to check whether the
+	 * basebone of this IK chain is constrained you may use the {@link #getBaseboneConstraintType()} method.
+	 * 
+	 * @return  The global directional constraint unit vector of the basebone of this IK chain.
+	 */
+	@Override
+	public Vec3f getBaseboneConstraintUV()
+	{
+		if ( mBaseboneConstraintType != BaseboneConstraintType3D.NONE )
+		{
+			return mBaseboneConstraintUV;
+		}
+		else
+		{
+			throw new RuntimeException("Cannot return the basebone constraint when the basebone constraint type is NONE.");
+		}
+	}
+
+    /**
+	 * Return the base location of the IK chain.
+	 * <p>
+	 * Regardless of how many bones are contained in the chain, the base location is always the start location of the
+	 * first bone in the chain.
+	 * <p>
+	 * This method does not return the mBaseLocation property of this chain because the start location of the basebone
+	 * may be more up-to-date due to a moving 'fixed' location.
+	 * 
+	 * @return	The location of the start joint of the first bone in this chain.
+	 */
+	@Override
+	public Vec3f getBaseLocation() { return my_chain.get(0).getStartLocation(); }	
+
+    /**
+	 * Return a bone by its zero-indexed location in the IK chain.
+	 * 
+	 * @param	boneNumber	The number of the bone to return from the Vector of FabrikBone3D objects.
+	 * @return				The specified bone.
+	 */
+	@Override
+	public FabrikBone3D getBone(int boneNumber) { return my_chain.get(boneNumber); }
+
+    /**
+	 * Return the index of the bone in another chain that this this chain is connected to.
+	 * <p>
+	 * Returns -1 (default) if this chain is not connected to another chain.
+	 * 
+	 * @return	The zero-indexed number of the bone we are connected to in the chain we are connected to.
+	 */ 
+	@Override
+	public int getConnectedBoneNumber() { return mConnectedBoneNumber; }
+
+	/**
+	 * Return the index of the chain in a FabrikStructure3D that this this chain is connected to.
+	 * <p>
+	 * Returns -1 (default) if this chain is not connected to another chain.
+	 * 
+	 * @return	The zero-index number of the chain we are connected to.
+	 */ 
+	@Override
+	public int getConnectedChainNumber() { return mConnectedChainNumber; }
+
+    /**
+	 * Return whether or not this chain uses an embedded target.
+	 * 
+	 * Embedded target mode may be enabled or disabled using setEmbeddededTargetMode(boolean).
+	 * 
+	 * @return whether or not this chain uses an embedded target.
+	 */
+	@Override
+	public boolean getEmbeddedTargetMode() { return mUseEmbeddedTarget; }
+
+    /**
+	 * Return the embedded target location.
+	 * 
+	 * @return the embedded target location.
+	 */
+	@Override
+	public Vec3f getEmbeddedTarget() { return mEmbeddedTarget; }
+
+    /**
+	 * Return the target of the last solve attempt.
+	 * <p>
+	 * The target location and the effector location are not necessarily at the same location unless the chain has been solved
+	 * for distance, and even then they are still likely to be <i>similar</i> rather than <b>identical</b> values.
+	 * 
+	 * @return	The target location of the last solve attempt.
+	 */
+	@Override
+	public Vec3f getLastTargetLocation() { return mLastTargetLocation; }
+
     
+	/**
+	 * Return the number of bones in this IK chain.
+	 *
+	 * @return	The number of bones in this IK chain.
+	 */
+	@Override
+	public int getNumBones() { return my_chain.size(); }
+
+    /**
+	 * Remove a bone from this IK chain by its zero-indexed location in the chain.
+	 * <p> 
+	 * This chain's {@link my_chainLength} property is updated to take into account the new chain length.
+	 * <p>
+	 * If the bone number to be removed does not exist in the chain then an IllegalArgumentException is thrown.
+	 * 
+	 * @param	boneNumber	The zero-indexed bone to remove from this IK chain.
+	 */
+	@Override
+	public void removeBone(int boneNumber)
+	{
+		// If the bone number is a bone which exists...
+		if (boneNumber < my_chain.size())
+		{	
+			// ...then remove the bone, decrease the bone count and update the chain length.
+			my_chain.remove(boneNumber);
+			updateChainLength();
+		}
+		else
+		{
+			throw new IllegalArgumentException("Bone " + boneNumber + " does not exist to be removed from the chain. Bones are zero indexed.");
+		}
+	}
+
+    /**
+	* Return the relative basebone reference constraint unit vector.
+	*
+	* @return	The relative basebone reference constraint unit vector.
+	*/
+	public Vec3f getBaseboneRelativeReferenceConstraintUV()	{ return mBaseboneRelativeReferenceConstraintUV;}
+
+    /**
+	 * Specify whether we should use the embedded target location when solving the IK chain.
+	 * 
+	 * @param	value	Whether we should use the embedded target location when solving the IK chain.
+	 */
+	@Override
+	public void setEmbeddedTargetMode(boolean value) { mUseEmbeddedTarget = value; }
+
+    //DID NOT INCLUDE THIS ONE
+    /**
+	 * Method to solve this IK chain for the given target location.
+	 * <p>
+	 * The end result of running this method is that the IK chain configuration is updated.
+	 * <p>
+	 * To minimuse CPU usage, this method dynamically aborts if:
+	 * - The solve distance (i.e. distance between the end effector and the target) is below the {@link solve_distance_threshold
+},
+	 * - A solution incrementally improves on the previous solution by less than the {@link mMinIterationChange}, or
+	 * - The number of attempts to solve the IK chain exceeds the {@link mMaxIterationAttempts}. 
+	 * 		
+	 * @param	targetX	The x location of the target
+	 * @param	targetY	The y location of the target
+	 * @param	targetZ	The z location of the target
+	 * @return			The resulting distance between the end effector and the new target location after solving the IK chain.
+	 */
+	public float solveForTarget(float targetX, float targetY, float targetZ)
+	{
+		return solveForTarget( new Vec3f(targetX, targetY, targetZ) );
+	}
+
+    /** Return a concise, human-readable of the IK chain. */
+	@Override
+	public String toString()
+	{
+		StringBuilder sb = new StringBuilder();		
+		sb.append("--- FabrikChain3D: " + mName + " ---" + NEW_LINE);
+			
+		if (!my_chain.isEmpty())
+		{
+			sb.append("Bone count:    : " + my_chain.size()         + NEW_LINE);			
+			sb.append("Base location  : " + getBaseLocation() + NEW_LINE);
+			sb.append("Chain length   : " + getChainLength()  + NEW_LINE);
+			
+			if (mFixedBaseMode) { 
+			  sb.append("Fixed base mode: Yes" + NEW_LINE);	
+			}
+			else { 
+			  sb.append("Fixed base mode: No"  + NEW_LINE); 
+			}
+			
+			for (FabrikBone3D aBone : this.my_chain)
+			{
+				sb.append("--- Bone: " + aBone + " ---" + NEW_LINE );
+				sb.append( aBone.toString()    + NEW_LINE );
+			}
+		}
+		else
+		{
+			sb.append("Chain does not contain any bones." + NEW_LINE);
+		}
+		
+		return sb.toString();
+	} 

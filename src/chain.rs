@@ -1,8 +1,8 @@
-use crate::{bone, joint};
+use crate::{bone, bone3D, joint};
 use cgmath::Vector3;
 
 pub trait Chain{
-    fn add_bone(&mut self, bone: dyn bone::Bone);
+    fn add_bone(&mut self, bone: bone3D::Bone3D);
 
     fn add_consecutive_bone_by_vector(&mut self, direction: cgmath::Vector3<f32>, length: f32);
 
@@ -48,10 +48,11 @@ pub trait Chain{
 	fn get_connected_chain_number(&self) -> usize;
 	
     //gets the position end effector this chain is trying to reach for.
-	fn get_effector_location(&self) -> Vector3<f32>;
+	fn find_effector_location(&self) -> Result<Vector3<f32>, FerrikErrors>;
 	
     //what is an embedded target mode?
-	fn get_embedded_target_mode(&self) -> bool;	
+		//fn get_embedded_target_mode(&self) -> bool;	
+		//This should be handle elsewhere in the api
 	
 	//gets the position of an embedded target?
 	fn get_embedded_target(&self) -> Vector3<f32>;
@@ -78,17 +79,18 @@ pub trait Chain{
 	fn get_num_bones(&self) -> usize;
 	
     //removes a bone at this index.
-	fn remove_bone(&mut self, bone_number: usize);
+		//fn remove_bone(&mut self, bone_number: usize);
+		//I would rather you use the rebuild method to just make a new structure.
 	
     //sets a direction constraint for the base point. I guess so shoulders dont invert into themselves.
-	fn set_basebone_constraint_uv(&mut self, constraint_uv: Vector3<f32>);
+	fn set_basebone_constraint_uv(&mut self, constraint_uv: Vector3<f32>) -> Result<(), FerrikErrors>;
 	
     //Sets the base location of this chain? How does that differ from the root bone?
 		//fn set_base_location(&mut self, base_location: Vector3<f32>);	
 		//removing it it doesn't do anything but directly set the value.
 	
     //toggles embedded target mode.
-	fn set_embedded_target_mode(&mut self, value: bool);
+		//fn set_embedded_target_mode(&mut self, value: bool);
 	
     //toggles whether the base bone is fixed in position or can be dragged along.
 	fn set_fixed_base_mode(&mut self, value: bool) -> Result<(), FerrikErrors>;	
@@ -109,7 +111,7 @@ pub trait Chain{
 	//fn set_id(&mut self, id: usize);	
 	
     //returns the distance after trying to solve between the end end and the target.
-	fn solve_for_embedded_target(&mut self) -> f32;
+	fn solve_for_embedded_target(&mut self) -> Result<f32, FerrikErrors>;
 	
     //Will attempt to solve for a given target and return the distance.
 	fn solve_for_target(&mut self, new_target: Vector3<f32>) -> f32;
@@ -124,4 +126,6 @@ pub trait Chain{
 pub enum FerrikErrors{
 	UnsolvableRequirement,
 	MultipleChainIssues,
+	ImpossibleHappenstance,
+	InvalidMethodCall,
 }
