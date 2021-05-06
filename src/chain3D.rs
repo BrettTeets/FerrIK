@@ -269,7 +269,7 @@ pub enum BaseboneConstraintType3D {
 //The IK solver gets to live down here. Oh Boy is this a monster.
 
 impl Chain3D{
-	fn solve_IK(&mut self, target: Vector3<f32>) //-> Result<f32, FerrikErrors>
+	fn solve_IK(&mut self, target: Vector3<f32>) -> Result<f32, FerrikErrors>
 	{	
 		// Sanity check that there are bones in the chain
 		if self.m_chain.is_empty() { 
@@ -283,7 +283,7 @@ impl Chain3D{
 		for index in (0..self.m_chain.len()).rev()
 		{
 			// Get the length of the bone we're working on
-			let mut thisBone = self.m_chain.get(index).unwrap();
+			let mut thisBone = self.m_chain[index];
 			let thisBoneLength  = thisBone.length();
 			let thisBoneJoint = thisBone.joint;
 			let thisBoneJointType = thisBone.joint.joint_type;
@@ -411,94 +411,93 @@ impl Chain3D{
 		
 		for index in 0..self.m_chain.len()//for (int loop = 0; loop < my_chain.size(); ++loop)
 		{
-			let thisBone = self.m_chain.get(index);
-			float thisBoneLength  = thisBone.length();
+			let thisBone = self.m_chain[index];
+			let thisBoneLength: f32  = thisBone.length();
 
 			// If we are not working on the basebone
-			if (loop != 0)
+			if index != 0
 			{
 				// Get the inner-to-outer direction of this bone as well as the previous bone to use as a baseline
-				Vec3f thisBoneInnerToOuterUV = thisBone.getDirectionUV();
-				Vec3f prevBoneInnerToOuterUV = my_chain.get(loop-1).getDirectionUV();
+				let thisBoneInnerToOuterUV: Vector3<f32> = thisBone.get_direction_uv();
+				let prevBoneInnerToOuterUV: Vector3<f32> = self.m_chain[index-1].get_direction_uv();
 				
 				// Dealing with a ball joint?
-				FabrikJoint3D thisBoneJoint = thisBone.getJoint();
-				JointType jointType = thisBoneJoint.getJointType();
-				if (jointType == JointType.BALL)
+				let thisBoneJoint = thisBone.joint;
+				let jointType = thisBoneJoint.joint_type;
+				if jointType == joint::JointType::Ball
 				{					
-					float angleBetweenDegs    = Vec3f.getAngleBetweenDegs(prevBoneInnerToOuterUV, thisBoneInnerToOuterUV);
-					float constraintAngleDegs = thisBoneJoint.getBallJointConstraintDegs(); 
+					let angleBetweenDegs: Deg<f32> = Vec3f.getAngleBetweenDegs(prevBoneInnerToOuterUV, thisBoneInnerToOuterUV);
+					let constraintAngleDegs: Deg<f32> = thisBoneJoint.get_ball_constraint(); 
 					
 					// Keep this bone direction constrained within the rotor about the previous bone direction
-					if (angleBetweenDegs > constraintAngleDegs)
+					if angleBetweenDegs > constraintAngleDegs
 					{
 						thisBoneInnerToOuterUV = Vec3f.getAngleLimitedUnitVectorDegs(thisBoneInnerToOuterUV, prevBoneInnerToOuterUV, constraintAngleDegs);
 					}
 				}
-				else if (jointType == JointType.GLOBAL_HINGE)
+				else if jointType == joint::JointType::GlobalHinge
 				{					
 					// Get the hinge rotation axis and project our inner-to-outer UV onto it
-					Vec3f hingeRotationAxis  =  thisBoneJoint.getHingeRotationAxis();
+					let hingeRotationAxis: Vector3<f32>  =  thisBoneJoint.getHingeRotationAxis();
 					thisBoneInnerToOuterUV = thisBoneInnerToOuterUV.projectOntoPlane(hingeRotationAxis);
 					
 					// If there are joint constraints, then we must honour them...
-					float cwConstraintDegs   = -thisBoneJoint.getHingeClockwiseConstraintDegs();
-					float acwConstraintDegs  =  thisBoneJoint.getHingeAnticlockwiseConstraintDegs();
-					if ( !( Utils.approximatelyEquals(cwConstraintDegs, -FabrikJoint3D.MAX_CONSTRAINT_ANGLE_DEGS, 0.001f) ) &&
-						 !( Utils.approximatelyEquals(acwConstraintDegs, FabrikJoint3D.MAX_CONSTRAINT_ANGLE_DEGS, 0.001f) ) )
+					let cwConstraintDegs: Deg<f32>   = -thisBoneJoint.getHingeClockwiseConstraintDegs();
+					let acwConstraintDegs: Deg<f32>  =  thisBoneJoint.getHingeAnticlockwiseConstraintDegs();
+					if  !( Utils.approximatelyEquals(cwConstraintDegs, -joint::Joint3D.MAX_CONSTRAINT_ANGLE_DEGS, 0.001) ) &&
+						 !( Utils.approximatelyEquals(acwConstraintDegs, joint::Joint3D.MAX_CONSTRAINT_ANGLE_DEGS, 0.001) ) 
 					{
-						Vec3f hingeReferenceAxis =  thisBoneJoint.getHingeReferenceAxis();
+						let hingeReferenceAxis: Vector3<f32> =  thisBoneJoint.getHingeReferenceAxis();
 						
 						// Get the signed angle (about the hinge rotation axis) between the hinge reference axis and the hinge-rotation aligned bone UV
 						// Note: ACW rotation is positive, CW rotation is negative.
-						float signedAngleDegs = Vec3f.getSignedAngleBetweenDegs(hingeReferenceAxis, thisBoneInnerToOuterUV, hingeRotationAxis);
+						let signedAngleDegs: Deg<f32> = Vec3f.getSignedAngleBetweenDegs(hingeReferenceAxis, thisBoneInnerToOuterUV, hingeRotationAxis);
 						
 						// Make our bone inner-to-outer UV the hinge reference axis rotated by its maximum clockwise or anticlockwise rotation as required
-			        	if (signedAngleDegs > acwConstraintDegs)
+			        	if signedAngleDegs > acwConstraintDegs
 			        	{	
 			        		thisBoneInnerToOuterUV = Vec3f.rotateAboutAxisDegs(hingeReferenceAxis, acwConstraintDegs, hingeRotationAxis).normalised();		        		
 			        	}
-			        	else if (signedAngleDegs < cwConstraintDegs)
+			        	else if signedAngleDegs < cwConstraintDegs
 			        	{	
 			        		thisBoneInnerToOuterUV = Vec3f.rotateAboutAxisDegs(hingeReferenceAxis, cwConstraintDegs, hingeRotationAxis).normalised();			        		
 			        	}
 					}
 				}
-				else if (jointType == JointType.LOCAL_HINGE)
+				else if jointType == joint::JointType::LocalHinge
 				{	
 					// Transform the hinge rotation axis to be relative to the previous bone in the chain
-					Vec3f hingeRotationAxis  = thisBoneJoint.getHingeRotationAxis();
+					let hingeRotationAxis: Vector3<f32>  = thisBoneJoint.getHingeRotationAxis();
 					
 					// Construct a rotation matrix based on the previous bone's direction
-					Mat3f m = Mat3f.createRotationMatrix(prevBoneInnerToOuterUV);
+					let m: Matrix3<f32> = Mat3f.createRotationMatrix(prevBoneInnerToOuterUV);
 					
 					// Transform the hinge rotation axis into the previous bone's frame of reference
-					Vec3f relativeHingeRotationAxis  = m.times(hingeRotationAxis).normalise();
-					
+					let relativeHingeRotationAxis: Vector3<f32>  = m.times(hingeRotationAxis).normalise();
 					
 					// Project this bone direction onto the plane described by the hinge rotation axis
 					// Note: The returned vector is normalised.
 					thisBoneInnerToOuterUV = thisBoneInnerToOuterUV.projectOntoPlane(relativeHingeRotationAxis);
 					
 					// Constrain rotation about reference axis if required
-					float cwConstraintDegs   = -thisBoneJoint.getHingeClockwiseConstraintDegs();
-					float acwConstraintDegs  =  thisBoneJoint.getHingeAnticlockwiseConstraintDegs();
-					if ( !( Utils.approximatelyEquals(cwConstraintDegs, -FabrikJoint3D.MAX_CONSTRAINT_ANGLE_DEGS, 0.001f) ) &&
-						 !( Utils.approximatelyEquals(acwConstraintDegs, FabrikJoint3D.MAX_CONSTRAINT_ANGLE_DEGS, 0.001f) ) )
+					let cwConstraintDegs: Deg<f32>   = -thisBoneJoint.getHingeClockwiseConstraintDegs();
+					let acwConstraintDegs: Deg<f32>  =  thisBoneJoint.getHingeAnticlockwiseConstraintDegs();
+					if  !( Utils.approximatelyEquals(cwConstraintDegs, -joint::Joint3D.MAX_CONSTRAINT_ANGLE_DEGS, 0.001f) ) &&
+						 !( Utils.approximatelyEquals(acwConstraintDegs, joint::Joint3D.MAX_CONSTRAINT_ANGLE_DEGS, 0.001f) ) 
 					{
 						// Calc. the reference axis in local space
-						Vec3f relativeHingeReferenceAxis = m.times( thisBoneJoint.getHingeReferenceAxis() ).normalise();
+						let relativeHingeReferenceAxis: Vector3<f32> = m.times( thisBoneJoint.getHingeReferenceAxis() ).normalise();
 						
 						// Get the signed angle (about the hinge rotation axis) between the hinge reference axis and the hinge-rotation aligned bone UV
 						// Note: ACW rotation is positive, CW rotation is negative.
-						float signedAngleDegs = Vec3f.getSignedAngleBetweenDegs(relativeHingeReferenceAxis, thisBoneInnerToOuterUV, relativeHingeRotationAxis);
+						let signedAngleDegs: Deg<f32> = Vec3f.getSignedAngleBetweenDegs(relativeHingeReferenceAxis, thisBoneInnerToOuterUV, relativeHingeRotationAxis);
 						
 						// Make our bone inner-to-outer UV the hinge reference axis rotated by its maximum clockwise or anticlockwise rotation as required
-			        	if (signedAngleDegs > acwConstraintDegs)
+			        	if signedAngleDegs > acwConstraintDegs
 			        	{	
 			        		thisBoneInnerToOuterUV = Vec3f.rotateAboutAxisDegs(relativeHingeReferenceAxis, acwConstraintDegs, relativeHingeRotationAxis).normalise();		        		
 			        	}
-			        	else if (signedAngleDegs < cwConstraintDegs)
+			        	else if signedAngleDegs < cwConstraintDegs
 			        	{	
 			        		thisBoneInnerToOuterUV = Vec3f.rotateAboutAxisDegs(relativeHingeReferenceAxis, cwConstraintDegs, relativeHingeRotationAxis).normalise();			        		
 			        	}
@@ -509,66 +508,66 @@ impl Chain3D{
 				// At this stage we have a outer-to-inner unit vector for this bone which is within our constraints,
 				// so we can set the new inner joint location to be the end joint location of this bone plus the
 				// outer-to-inner direction unit vector multiplied by the length of the bone.
-				Vec3f newEndLocation = thisBone.getStartLocation().plus( thisBoneInnerToOuterUV.times(thisBoneLength) );
+				let newEndLocation: Vector3<f32> = thisBone.start + (thisBoneInnerToOuterUV * thisBoneLength );
 
 				// Set the new start joint location for this bone
-				thisBone.setEndLocation(newEndLocation);
+				thisBone.end = newEndLocation;
 
 				// If we are not working on the end effector bone, then we set the start joint location of the next bone in
 				// the chain (i.e. the bone closer to the target) to be the new end joint location of this bone.
-				if (loop < my_chain.size() - 1) { 
-				  my_chain.get(loop+1).setStartLocation(newEndLocation); 
+				if index < self.m_chain.len() - 1 { 
+				  self.m_chain[index+1].start = newEndLocation; 
 				}
 			}
 			else // If we ARE working on the basebone...
 			{	
 				// If the base location is fixed then snap the start location of the basebone back to the fixed base...
-				if (mFixedBaseMode)
+				if self.fixed_base_mode
 				{
-					thisBone.setStartLocation(mFixedBaseLocation);
+					thisBone.start = self.base_location;
 				}
 				else // ...otherwise project it backwards from the end to the start by its length.
 				{
-					thisBone.setStartLocation( thisBone.getEndLocation().minus( thisBone.getDirectionUV().times(thisBoneLength) ) );
+					thisBone.start = thisBone.end - ( thisBone.get_direction_uv() * thisBoneLength ) ;
 				}
 				
 				// If the basebone is unconstrained then process it as usual...
-				if (mBaseboneConstraintType == BaseboneConstraintType3D.NONE)
+				if self.basebone_constraint_type == BaseboneConstraintType3D::None
 				{
 					// Set the new end location of this bone, and if there are more bones,
 					// then set the start location of the next bone to be the end location of this bone
-					Vec3f newEndLocation = thisBone.getStartLocation().plus( thisBone.getDirectionUV().times(thisBoneLength) );
-					thisBone.setEndLocation(newEndLocation);	
+					let newEndLocation: Vector3<f32> = thisBone.start + ( thisBone.get_direction_uv() * thisBoneLength );
+					thisBone.end = newEndLocation;	
 					
-					if (my_chain.size() > 1) { 
-					  my_chain.get(1).setStartLocation(newEndLocation); 
+					if self.m_chain.len() > 1 { 
+					  self.m_chain[1].start = newEndLocation; 
 					}
 				}
 				else // ...otherwise we must constrain it to the basebone constraint unit vector
 				{	
-					if (mBaseboneConstraintType == BaseboneConstraintType3D.GLOBAL_ROTOR)
+					if self.basebone_constraint_type == BaseboneConstraintType3D::GlobalRotor
 					{	
 						// Get the inner-to-outer direction of this bone
-						Vec3f thisBoneInnerToOuterUV = thisBone.getDirectionUV();
+						let thisBoneInnerToOuterUV: Vector3<f32> = thisBone.get_direction_uv();
 								
-						float angleBetweenDegs    = Vec3f.getAngleBetweenDegs(mBaseboneConstraintUV, thisBoneInnerToOuterUV);
-						float constraintAngleDegs = thisBone.getBallJointConstraintDegs(); 
+						let angleBetweenDegs: Deg<f32>   = Vec3f.getAngleBetweenDegs(mBaseboneConstraintUV, thisBoneInnerToOuterUV);
+						let constraintAngleDegs: Deg<f32> = thisBone.joint.get_ball_constraint(); 
 					
-						if (angleBetweenDegs > constraintAngleDegs)
+						if angleBetweenDegs > constraintAngleDegs
 						{
 							thisBoneInnerToOuterUV = Vec3f.getAngleLimitedUnitVectorDegs(thisBoneInnerToOuterUV, mBaseboneConstraintUV, constraintAngleDegs);
 						}
 						
-						Vec3f newEndLocation = thisBone.getStartLocation().plus( thisBoneInnerToOuterUV.times(thisBoneLength) );
+						let newEndLocation: Vector3<f32> = thisBone.start + ( thisBoneInnerToOuterUV * thisBoneLength);
 						
-						thisBone.setEndLocation( newEndLocation );
+						thisBone.end = newEndLocation;
 						
 						// Also, set the start location of the next bone to be the end location of this bone
-						if (my_chain.size() > 1) { 
-						  my_chain.get(1).setStartLocation(newEndLocation); 
+						if self.m_chain.len() > 1 { 
+						  self.m_chain[1].start = newEndLocation; 
 						}
 					}
-					else if (mBaseboneConstraintType == BaseboneConstraintType3D.LOCAL_ROTOR)
+					else if self.basebone_constraint_type == BaseboneConstraintType3D::LocalRotor
 					{
 						// Note: The mBaseboneRelativeConstraintUV is updated in the FabrikStructure3D.solveForTarget()
 						// method BEFORE this FabrikChain3D.solveForTarget() method is called. We no knowledge of the
@@ -577,101 +576,101 @@ impl Chain3D{
 						// us so we are now free to use it here.
 						
 						// Get the inner-to-outer direction of this bone
-						Vec3f thisBoneInnerToOuterUV = thisBone.getDirectionUV();
+						let thisBoneInnerToOuterUV: Vector3<f32> = thisBone.get_direction_uv();
 								
 						// Constrain about the relative basebone constraint unit vector as neccessary
-						float angleBetweenDegs    = Vec3f.getAngleBetweenDegs(mBaseboneRelativeConstraintUV, thisBoneInnerToOuterUV);
-						float constraintAngleDegs = thisBone.getBallJointConstraintDegs();
-						if (angleBetweenDegs > constraintAngleDegs)
+						let angleBetweenDegs: Deg<f32>   = Vec3f.getAngleBetweenDegs(self.mBaseboneRelativeConstraintUV, thisBoneInnerToOuterUV);
+						let constraintAngleDegs: Deg<f32> = thisBone.joint.get_ball_constraint();
+						if angleBetweenDegs > constraintAngleDegs
 						{
 							thisBoneInnerToOuterUV = Vec3f.getAngleLimitedUnitVectorDegs(thisBoneInnerToOuterUV, mBaseboneRelativeConstraintUV, constraintAngleDegs);
 						}
 						
 						// Set the end location
-						Vec3f newEndLocation = thisBone.getStartLocation().plus( thisBoneInnerToOuterUV.times(thisBoneLength) );						
-						thisBone.setEndLocation( newEndLocation );
+						let newEndLocation: Vector3<f32> = thisBone.start + ( thisBoneInnerToOuterUV * thisBoneLength);						
+						thisBone.end = newEndLocation;
 						
 						// Also, set the start location of the next bone to be the end location of this bone
-						if (my_chain.size() > 1) { 
-						  my_chain.get(1).setStartLocation(newEndLocation); 
+						if self.m_chain.len() > 1 { 
+						  self.m_chain[1].start = newEndLocation; 
 						}
 					}
-					else if (mBaseboneConstraintType == BaseboneConstraintType3D.GLOBAL_HINGE)
+					else if self.basebone_constraint_type == BaseboneConstraintType3D::GlobalHinge
 					{
-						FabrikJoint3D thisJoint  =  thisBone.getJoint();
-						Vec3f hingeRotationAxis  =  thisJoint.getHingeRotationAxis();
-						float cwConstraintDegs   = -thisJoint.getHingeClockwiseConstraintDegs();     // Clockwise rotation is negative!
-						float acwConstraintDegs  =  thisJoint.getHingeAnticlockwiseConstraintDegs();
+						let thisJoint  =  thisBone.joint;
+						let hingeRotationAxis: Vector3<f32>  =  thisJoint.getHingeRotationAxis();
+						let cwConstraintDegs: Deg<f32>   = -thisJoint.getHingeClockwiseConstraintDegs();     // Clockwise rotation is negative!
+						let acwConstraintDegs: Deg<f32>  =  thisJoint.getHingeAnticlockwiseConstraintDegs();
 						
 						// Get the inner-to-outer direction of this bone and project it onto the global hinge rotation axis
-						Vec3f thisBoneInnerToOuterUV = thisBone.getDirectionUV().projectOntoPlane(hingeRotationAxis);
+						let thisBoneInnerToOuterUV: Vector3<f32> = thisBone.get_direction_uv().projectOntoPlane(hingeRotationAxis);
 								
 						// If we have a global hinge which is not freely rotating then we must constrain about the reference axis
-						if ( !( Utils.approximatelyEquals(cwConstraintDegs , -FabrikJoint3D.MAX_CONSTRAINT_ANGLE_DEGS, 0.01f) &&
-							    Utils.approximatelyEquals(acwConstraintDegs,  FabrikJoint3D.MAX_CONSTRAINT_ANGLE_DEGS, 0.01f) ) )
+						if  !( Utils.approximatelyEquals(cwConstraintDegs , -joint::Joint3D.MAX_CONSTRAINT_ANGLE_DEGS, 0.01f) &&
+							    Utils.approximatelyEquals(acwConstraintDegs,  joint::Joint3D.MAX_CONSTRAINT_ANGLE_DEGS, 0.01f) ) 
 						{
 							// Grab the hinge reference axis and calculate the current signed angle between it and our bone direction (about the hinge
 							// rotation axis). Note: ACW rotation is positive, CW rotation is negative.
-							Vec3f hingeReferenceAxis = thisJoint.getHingeReferenceAxis();
-							float signedAngleDegs    = Vec3f.getSignedAngleBetweenDegs(hingeReferenceAxis, thisBoneInnerToOuterUV, hingeRotationAxis);
+							let hingeReferenceAxis: Vector3<f32> = thisJoint.getHingeReferenceAxis();
+							let signedAngleDegs: Deg<f32> = Vec3f.getSignedAngleBetweenDegs(hingeReferenceAxis, thisBoneInnerToOuterUV, hingeRotationAxis);
 							
 							// Constrain as necessary
-				        	if (signedAngleDegs > acwConstraintDegs)
+				        	if signedAngleDegs > acwConstraintDegs
 				        	{	
 				        		thisBoneInnerToOuterUV = Vec3f.rotateAboutAxisDegs(hingeReferenceAxis, acwConstraintDegs, hingeRotationAxis).normalise();		        		
 				        	}
-				        	else if (signedAngleDegs < cwConstraintDegs)
+				        	else if signedAngleDegs < cwConstraintDegs
 				        	{	
 				        		thisBoneInnerToOuterUV = Vec3f.rotateAboutAxisDegs(hingeReferenceAxis, cwConstraintDegs, hingeRotationAxis).normalise();			        		
 				        	}
 						}
 						
 						// Calc and set the end location of this bone
-						Vec3f newEndLocation = thisBone.getStartLocation().plus( thisBoneInnerToOuterUV.times(thisBoneLength) );						
-						thisBone.setEndLocation( newEndLocation );
+						let newEndLocation: Vector3<f32> = thisBone.start +( thisBoneInnerToOuterUV * thisBoneLength );						
+						thisBone.end = newEndLocation;
 						
 						// Also, set the start location of the next bone to be the end location of this bone
-						if (my_chain.size() > 1) { 
-						  my_chain.get(1).setStartLocation(newEndLocation); 
+						if self.m_chain.len() > 1 { 
+						  self.m_chain[1].start = newEndLocation; 
 						}
 					}
-					else if (mBaseboneConstraintType == BaseboneConstraintType3D.LOCAL_HINGE)
+					else if self.basebone_constraint_type == BaseboneConstraintType3D::LocalHinge
 					{
-						FabrikJoint3D thisJoint  =  thisBone.getJoint();
-						Vec3f hingeRotationAxis  =  mBaseboneRelativeConstraintUV;                   // Basebone relative constraint is our hinge rotation axis!
-						float cwConstraintDegs   = -thisJoint.getHingeClockwiseConstraintDegs();     // Clockwise rotation is negative!
-						float acwConstraintDegs  =  thisJoint.getHingeAnticlockwiseConstraintDegs();
+						let thisJoint  =  thisBone.joint;
+						let  hingeRotationAxis: Vector3<f32>  =  self.mBaseboneRelativeConstraintUV;                   // Basebone relative constraint is our hinge rotation axis!
+						let  cwConstraintDegs: Deg<f32>   = -thisJoint.getHingeClockwiseConstraintDegs();     // Clockwise rotation is negative!
+						let  acwConstraintDegs: Deg<f32>  =  thisJoint.getHingeAnticlockwiseConstraintDegs();
 						
 						// Get the inner-to-outer direction of this bone and project it onto the global hinge rotation axis
-						Vec3f thisBoneInnerToOuterUV = thisBone.getDirectionUV().projectOntoPlane(hingeRotationAxis);
+						let thisBoneInnerToOuterUV: Vector3<f32> = thisBone.get_direction_uv().projectOntoPlane(hingeRotationAxis);
 						
 						// If we have a local hinge which is not freely rotating then we must constrain about the reference axis
-						if ( !( Utils.approximatelyEquals(cwConstraintDegs , -FabrikJoint3D.MAX_CONSTRAINT_ANGLE_DEGS, 0.01f) &&
-							    Utils.approximatelyEquals(acwConstraintDegs,  FabrikJoint3D.MAX_CONSTRAINT_ANGLE_DEGS, 0.01f) ) )
+						if  !( Utils.approximatelyEquals(cwConstraintDegs , -FabrikJoint3D.MAX_CONSTRAINT_ANGLE_DEGS, 0.01) &&
+							    Utils.approximatelyEquals(acwConstraintDegs,  FabrikJoint3D.MAX_CONSTRAINT_ANGLE_DEGS, 0.01) ) 
 						{
 							// Grab the hinge reference axis and calculate the current signed angle between it and our bone direction (about the hinge
 							// rotation axis). Note: ACW rotation is positive, CW rotation is negative.
-							Vec3f hingeReferenceAxis = mBaseboneRelativeReferenceConstraintUV; 
-							float signedAngleDegs    = Vec3f.getSignedAngleBetweenDegs(hingeReferenceAxis, thisBoneInnerToOuterUV, hingeRotationAxis);
+							let hingeReferenceAxis: Vector3<f32> = self.mBaseboneRelativeReferenceConstraintUV; 
+							let signedAngleDegs: Deg<f32>  = Vec3f.getSignedAngleBetweenDegs(hingeReferenceAxis, thisBoneInnerToOuterUV, hingeRotationAxis);
 							
 							// Constrain as necessary
-				        	if (signedAngleDegs > acwConstraintDegs)
+				        	if signedAngleDegs > acwConstraintDegs
 				        	{	
 				        		thisBoneInnerToOuterUV = Vec3f.rotateAboutAxisDegs(hingeReferenceAxis, acwConstraintDegs, hingeRotationAxis).normalise();		        		
 				        	}
-				        	else if (signedAngleDegs < cwConstraintDegs)
+				        	else if signedAngleDegs < cwConstraintDegs
 				        	{	
 				        		thisBoneInnerToOuterUV = Vec3f.rotateAboutAxisDegs(hingeReferenceAxis, cwConstraintDegs, hingeRotationAxis).normalise();			        		
 				        	}
 						}
 						
 						// Calc and set the end location of this bone
-						Vec3f newEndLocation = thisBone.getStartLocation().plus( thisBoneInnerToOuterUV.times(thisBoneLength) );						
-						thisBone.setEndLocation( newEndLocation );
+						let newEndLocation: Vector3<f32> = thisBone.start + ( thisBoneInnerToOuterUV * thisBoneLength);						
+						thisBone.end = newEndLocation;
 						
 						// Also, set the start location of the next bone to be the end location of this bone
-						if (my_chain.size() > 1) { 
-						  my_chain.get(1).setStartLocation(newEndLocation); 
+						if self.m_chain.len() > 1 { 
+						  self.m_chain[1].start = newEndLocation; 
 						}
 					}
 					
@@ -682,7 +681,7 @@ impl Chain3D{
 		} // End of backward-pass loop over all bones
 
 		// Update our last target location
-		mLastTargetLocation.set(target);
+		self.mLastTargetLocation = target;
 				
 		// DEBUG - check the live chain length and the originally calculated chain length are the same
 		/*
@@ -693,6 +692,6 @@ impl Chain3D{
 		*/
 		
 		// Finally, calculate and return the distance between the current effector location and the target.
-		return Vec3f.distanceBetween(my_chain.get(my_chain.size()-1).getEndLocation(), target);
+		return Ok(Vec3f.distanceBetween(self.m_chain[self.m_chain.len()-1].end, target));
 	}
 }
