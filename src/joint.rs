@@ -4,7 +4,7 @@ pub trait Joint {
 }
 
 //This was pulled over directly from the caliko version.
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub enum JointType {
     Ball,
     GlobalHinge,
