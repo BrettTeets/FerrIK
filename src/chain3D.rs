@@ -41,7 +41,7 @@ impl Chain3D{
 		return length;
 	}
 	
-	fn connect_to_structure(&mut self, structure: &mut structure::Structure3D , 
+	/*fn connect_to_structure(&mut self, structure: &mut structure::Structure3D , 
 		chain_number: usize, bone_number:usize) -> Result<(), FerrikErrors>
 	{
 		// Sanity check chain exists
@@ -62,10 +62,10 @@ impl Chain3D{
 		self.mConnectedChainNumber = Some(chain_number);
 		self.mConnectedBoneNumber  = Some(bone_number);
 		return Ok(());		
-	}
+	}*/
 }
 
-impl chain::Chain for Chain3D{
+impl Chain3D{
 
 	fn solve_for_embedded_target(&mut self) -> Result<f32, FerrikErrors>
 	{

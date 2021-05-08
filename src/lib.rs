@@ -10,6 +10,7 @@ pub mod chain3D;
 pub mod structure;
 
 pub mod util;
+pub mod flat;
 
 #[cfg(test)]
 mod tests {
