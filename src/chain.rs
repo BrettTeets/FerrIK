@@ -123,6 +123,7 @@ pub trait Chain{
 	fn update_chain_length(&mut self);	
 }
 
+#[derive(Debug)] 
 pub enum FerrikErrors{
 	UnsolvableRequirement,
 	MultipleChainIssues,
