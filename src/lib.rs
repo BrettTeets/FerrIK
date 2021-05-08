@@ -9,6 +9,8 @@ pub mod chain;
 pub mod chain3D;
 pub mod structure;
 
+pub mod util;
+
 #[cfg(test)]
 mod tests {
     #[test]

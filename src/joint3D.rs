@@ -7,7 +7,7 @@ const MAX_CONSTRAINT_ANGLE_DEGS: cgmath::Deg<f32> = cgmath::Deg(180.0); //uncons
 
 #[derive(Clone)]
 pub struct Joint3D{
-    joint_type: joint::JointType,
+    pub joint_type: joint::JointType,
     rotor_constraint: cgmath::Deg<f32>,
     hinge_clockwise_constraint: cgmath::Deg<f32>,
     hinge_anticlockwise_constraint: cgmath::Deg<f32>,
