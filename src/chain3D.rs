@@ -1,6 +1,7 @@
-use cgmath::{Vector3, InnerSpace, Deg, Matrix3};
+use cgmath::{Vector3, InnerSpace, Deg, Matrix3, Rad};
 use crate::{bone3D, joint3D, chain, chain::FerrikErrors, joint};
 use log::{error};
+use crate::util;
 
 #[derive(Clone)]
 pub struct Chain3D{
@@ -301,8 +302,8 @@ impl Chain3D{
 				if thisBoneJointType == joint::JointType::Ball
 				{	
 					// Constrain to relative angle between this bone and the outer bone if required
-					let angleBetweenDegs: Deg<f32>  = Vec3f.getAngleBetweenDegs(outerBoneOuterToInnerUV, thisBoneOuterToInnerUV);
-					let constraintAngleDegs = thisBoneJoint.get_ball_constraint();
+					let angleBetweenDegs: Rad<f32>  = util::getAngleBetweenRads(outerBoneOuterToInnerUV, thisBoneOuterToInnerUV);
+					let constraintAngleDegs: Rad<f32> = thisBoneJoint.get_ball_constraint().into();
 					if angleBetweenDegs > constraintAngleDegs
 					{	
 						thisBoneOuterToInnerUV = Vec3f.getAngleLimitedUnitVectorDegs(thisBoneOuterToInnerUV, outerBoneOuterToInnerUV, constraintAngleDegs);

@@ -1,6 +1,7 @@
 use crate::chain::FerrikErrors;
 use log::{error};
 use cgmath::InnerSpace;
+use cgmath::{Rad, Vector3};
 
 /**
  * Determine the sign of a float value.
@@ -89,7 +90,7 @@ pub fn convertRange( origValue: f32,  origMin: f32,  origMax: f32,
  * @param	tolerance	The difference within the <strong>a</strong> and <strong>b</strong> values must be within to be considered approximately equal.
  * @return			Whether the a and b values are approximately equal or not.
  */
-pub fn approximatelyEquals(a: f32,  b: f32,  tolerance: f32) -> bool
+pub fn float_approximatelyEquals(a: f32,  b: f32,  tolerance: f32) -> bool
 {
     if (a - b).abs() <= tolerance{
         return true;
@@ -98,3 +99,116 @@ pub fn approximatelyEquals(a: f32,  b: f32,  tolerance: f32) -> bool
         return false;
     }
 }
+
+pub fn  vector_approximatelyEquals(v1: cgmath::Vector3<f32>, v2: cgmath::Vector3<f32>,  tolerance: f32) -> Result<bool, FerrikErrors>
+{	
+    if tolerance < 0.0
+    {
+        error!("Equality threshold must be greater than or equal to 0.0f");
+        return Err(FerrikErrors::UnsolvableRequirement);
+    }
+    
+    // Get the absolute differences between the components
+    let xDiff:f32  = (v1.x - v2.x).abs();
+    let yDiff: f32 = (v1.y - v2.y).abs();
+    let zDiff: f32 = (v1.z - v2.z).abs();
+    
+    // Return true or false
+    return Ok(xDiff < tolerance && yDiff < tolerance && zDiff < tolerance);
+}
+
+pub fn perpendicular(a: cgmath::Vector3<f32>, b: cgmath::Vector3<f32>) -> bool
+{
+    //Todo: does this need to be cloned before it is used like this is it changing a?
+    if float_approximatelyEquals(a.dot(b) , 0.0, 0.01)
+    {
+        return true;
+    }
+    else{
+        return false;
+    }
+}
+
+pub fn getAngleBetweenRads(v1: cgmath::Vector3<f32>,v2: cgmath::Vector3<f32>) -> cgmath::Rad<f32>
+{
+    // Note: a and b are normalised within the dotProduct method.
+    let product = v1.dot(v2);
+    let rad = product.acos();
+    return cgmath::Rad(rad);
+}
+
+pub fn getAngleLimitedUnitVectorDegs(vecToLimit: Vector3<f32>,  vecBaseline: Vector3<f32>,
+    angleLimitDegs: Rad<f32>) -> cgmath::Vector3<f32>
+{
+    // Get the angle between the two vectors
+    // Note: This will ALWAYS be a positive value between 0 and 180 degrees.
+    let angleBetweenVectorsDegs: Rad<f32> = getAngleBetweenRads(vecBaseline, vecToLimit);
+    
+    if angleBetweenVectorsDegs > angleLimitDegs
+    {        	
+        // The axis which we need to rotate around is the one perpendicular to the two vectors - so we're
+        // rotating around the vector which is the cross-product of our two vectors.
+        // Note: We do not have to worry about both vectors being the same or pointing in opposite directions
+        // because if they bones are the same direction they will not have an angle greater than the angle limit,
+        // and if they point opposite directions we will approach but not quite reach the precise max angle
+        // limit of 180.0f (I believe).
+        //ToDO, I dont know if this is going to compile correctly might want to break it down into descrte steps.
+        let correctionAxis: Vector3<f32> = vecBaseline.normalize().cross(vecToLimit.normalize()).normalize();
+        
+        // Our new vector is the baseline vector rotated by the max allowable angle about the correction axis
+        return Vec3f.rotateAboutAxisDegs(vecBaseline, angleLimitDegs, correctionAxis).normalised();
+    }
+    else // Angle not greater than limit? Just return a normalised version of the vecToLimit
+    {
+        // This may already BE normalised, but we have no way of knowing without calcing the length, so best be safe and normalise.
+        // TODO: If performance is an issue, then I could get the length, and if it's not approx. 1.0f THEN normalise otherwise just return as is.
+        return vecToLimit.normalised();
+    }
+}
+
+public static Vec3f rotateAboutAxisRads(Vec3f source, float angleRads, Vec3f rotationAxis)
+	{
+		Mat3f rotationMatrix = new Mat3f();
+
+		float sinTheta         = (float)Math.sin(angleRads);
+		float cosTheta         = (float)Math.cos(angleRads);
+		float oneMinusCosTheta = 1.0f - cosTheta;
+		
+		// It's quicker to pre-calc these and reuse than calculate x * y, then y * x later (same thing).
+		float xyOne = rotationAxis.x * rotationAxis.y * oneMinusCosTheta;
+		float xzOne = rotationAxis.x * rotationAxis.z * oneMinusCosTheta;
+		float yzOne = rotationAxis.y * rotationAxis.z * oneMinusCosTheta;
+		
+		// Calculate rotated x-axis
+		rotationMatrix.m00 = rotationAxis.x * rotationAxis.x * oneMinusCosTheta + cosTheta;
+		rotationMatrix.m01 = xyOne + rotationAxis.z * sinTheta;
+		rotationMatrix.m02 = xzOne - rotationAxis.y * sinTheta;
+
+		// Calculate rotated y-axis
+		rotationMatrix.m10 = xyOne - rotationAxis.z * sinTheta;
+		rotationMatrix.m11 = rotationAxis.y * rotationAxis.y * oneMinusCosTheta + cosTheta;
+		rotationMatrix.m12 = yzOne + rotationAxis.x * sinTheta;
+
+		// Calculate rotated z-axis
+		rotationMatrix.m20 = xzOne + rotationAxis.y * sinTheta;
+		rotationMatrix.m21 = yzOne - rotationAxis.x * sinTheta;
+		rotationMatrix.m22 = rotationAxis.z * rotationAxis.z * oneMinusCosTheta + cosTheta;
+
+		// Multiply the source by the rotation matrix we just created to perform the rotation
+		return rotationMatrix.times(source);
+	}
+/*pub fn lengthIsApproximately(float value, float tolerance) -> bool
+{
+    // Check for a valid tolerance
+    if (tolerance < 0.0f)
+    {
+        throw new IllegalArgumentException("Comparison tolerance cannot be less than zero.");
+    }
+    
+    if ( Math.abs(this.length() - value) < tolerance)
+    {
+        return true;
+    }
+    
+    return false;
+}*/
