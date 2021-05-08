@@ -3,11 +3,17 @@ use cgmath::{Rad};
 pub const MIN_2D_CONSTRAINT_ANGLE_DEGS: Rad<f32> = Rad(0.0);
 pub const MAX_2D_CONSTRAINT_ANGLE_DEGS: Rad<f32> = Rad(3.14159); //This should be 180 degrees in radians.
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct Joint{
     mClockwiseConstraintDegs: Rad<f32>,
     mAnticlockwiseConstraintDegs: Rad<f32>,
     mConstraintCoordinateSystem: ConstraintCoordinateSystem,	
+}
+
+#[derive(Clone, Copy, PartialEq)]
+pub enum ConstraintCoordinateSystem{
+    LOCAL,
+    GLOBAL,
 }
 
 impl Joint{
@@ -76,8 +82,3 @@ impl Joint{
 	}
 }
 
-#[derive(Clone, Copy)]
-pub enum ConstraintCoordinateSystem{
-    LOCAL,
-    GLOBAL,
-}
