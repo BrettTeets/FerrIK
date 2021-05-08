@@ -81,8 +81,8 @@ impl chain::Chain for Chain3D{
 	fn solve_for_target(&mut self, new_target: Vector3<f32>) -> f32
 	{	
 		// If we have both the same target and base location as the last run then do not solve
-		if  self.mLastTargetLocation.approximatelyEquals(new_target, 0.001) &&
-			 self.mLastBaseLocation.approximatelyEquals(self.base_location, 0.001) 
+		if  util::vector_approximatelyEquals(self.mLastTargetLocation, new_target, 0.001).unwrap() &&
+			 util::vector_approximatelyEquals(self.mLastBaseLocation, self.base_location, 0.001).unwrap() 
 		{
 			return self.mCurrentSolveDistance;
 		}
@@ -105,14 +105,14 @@ impl chain::Chain for Chain3D{
 		for i in 0..self.max_iteration_attempts
 		{	
 			// Solve the chain for this target
-			solve_distance = solveIK(new_target);
+			solve_distance = self.solve_IK(new_target).unwrap();
 			
 			// Did we solve it for distance? If so, update our best distance and best solution, and also
 			// update our last pass solve distance. Note: We will ALWAYS beat our last solve distance on the first run. 
 			if solve_distance < best_solve_distance
 			{	
 				best_solve_distance = solve_distance;
-				best_solution = self.cloneIkChain();
+				best_solution = self.m_chain.clone();
 				
 				// If we are happy that this solution meets our distance requirements then we can exit the loop now
 				if solve_distance <= self.solve_distance_threshold
@@ -123,7 +123,7 @@ impl chain::Chain for Chain3D{
 			else // Did not solve to our satisfaction? Okay...
 			{
 				// Did we grind to a halt? If so break out of loop to set the best distance and solution that we have
-				if Math.abs(solve_distance - last_pass_solve_distance) < self.min_iteration_change
+				if (solve_distance - last_pass_solve_distance).abs() < self.min_iteration_change
 				{
 					break;
 				}
@@ -218,7 +218,7 @@ impl chain::Chain for Chain3D{
 			return Err(FerrikErrors::MultipleChainIssues)
 		}
 		// We cannot have a freely moving base location AND constrain the basebone to an absolute direction
-		if self.mBaseboneConstraintType == BaseboneConstraintType3D::GlobalRotor && !value
+		if self.basebone_constraint_type == BaseboneConstraintType3D::GlobalRotor && !value
 		{
 			error!("Cannot set a non-fixed base mode when the chain's constraint type is BaseboneConstraintType3D.GLOBAL_ABSOLUTE_ROTOR.");
 			return Err(FerrikErrors::UnsolvableRequirement)
@@ -248,7 +248,7 @@ impl chain::Chain for Chain3D{
 		}
 		
 		// Validate the constraint direction unit vector
-		Utils.validateDirectionUV(constraintUV);
+		util::validateDirectionUV(constraintUV);
 		
 		// All good? Then normalise the constraint direction and set it
 		self.mBaseboneConstraintUV = constraintUV.normalize();
@@ -452,55 +452,56 @@ impl Chain3D{
 						
 						// Get the signed angle (about the hinge rotation axis) between the hinge reference axis and the hinge-rotation aligned bone UV
 						// Note: ACW rotation is positive, CW rotation is negative.
-						let signedAngleDegs: Deg<f32> = Vec3f.getSignedAngleBetweenDegs(hingeReferenceAxis, thisBoneInnerToOuterUV, hingeRotationAxis);
+						let signedAngleDegs: f32 = util::getSignedAngleBetweenDegs(hingeReferenceAxis, thisBoneInnerToOuterUV, hingeRotationAxis);
 						
 						// Make our bone inner-to-outer UV the hinge reference axis rotated by its maximum clockwise or anticlockwise rotation as required
-			        	if signedAngleDegs > acwConstraintDegs
+			        	if signedAngleDegs > acwConstraintDegs.0
 			        	{	
-			        		thisBoneInnerToOuterUV = Vec3f.rotateAboutAxisDegs(hingeReferenceAxis, acwConstraintDegs, hingeRotationAxis).normalised();		        		
+			        		thisBoneInnerToOuterUV = util::rotateAboutAxis(hingeReferenceAxis, acwConstraintDegs, hingeRotationAxis).normalize();		        		
 			        	}
-			        	else if signedAngleDegs < cwConstraintDegs
+			        	else if signedAngleDegs < cwConstraintDegs.0
 			        	{	
-			        		thisBoneInnerToOuterUV = Vec3f.rotateAboutAxisDegs(hingeReferenceAxis, cwConstraintDegs, hingeRotationAxis).normalised();			        		
+							//TODO looking into the difference between normalize and normalized from the caliko impl.
+			        		thisBoneInnerToOuterUV = util::rotateAboutAxis(hingeReferenceAxis, cwConstraintDegs, hingeRotationAxis).normalize();			        		
 			        	}
 					}
 				}
 				else if jointType == joint::JointType::LocalHinge
 				{	
 					// Transform the hinge rotation axis to be relative to the previous bone in the chain
-					let hingeRotationAxis: Vector3<f32>  = thisBoneJoint.getHingeRotationAxis();
+					let hingeRotationAxis: Vector3<f32>  = thisBoneJoint.rotation_axis_uv;
 					
 					// Construct a rotation matrix based on the previous bone's direction
-					let m: Matrix3<f32> = Mat3f.createRotationMatrix(prevBoneInnerToOuterUV);
+					let m: Matrix3<f32> = util::createRotationMatrix(prevBoneInnerToOuterUV);
 					
 					// Transform the hinge rotation axis into the previous bone's frame of reference
-					let relativeHingeRotationAxis: Vector3<f32>  = m.times(hingeRotationAxis).normalise();
+					let relativeHingeRotationAxis: Vector3<f32>  = m * (hingeRotationAxis).normalize();
 					
 					// Project this bone direction onto the plane described by the hinge rotation axis
 					// Note: The returned vector is normalised.
-					thisBoneInnerToOuterUV = thisBoneInnerToOuterUV.projectOntoPlane(relativeHingeRotationAxis);
+					thisBoneInnerToOuterUV = util::projectOntoPlane(&thisBoneInnerToOuterUV, &relativeHingeRotationAxis).unwrap();
 					
 					// Constrain rotation about reference axis if required
-					let cwConstraintDegs: Deg<f32>   = -thisBoneJoint.getHingeClockwiseConstraintDegs();
-					let acwConstraintDegs: Deg<f32>  =  thisBoneJoint.getHingeAnticlockwiseConstraintDegs();
-					if  !( Utils.approximatelyEquals(cwConstraintDegs, -joint::Joint3D.MAX_CONSTRAINT_ANGLE_DEGS, 0.001f) ) &&
-						 !( Utils.approximatelyEquals(acwConstraintDegs, joint::Joint3D.MAX_CONSTRAINT_ANGLE_DEGS, 0.001f) ) 
+					let cwConstraintDegs: Rad<f32>   = -thisBoneJoint.hinge_clockwise_constraint;
+					let acwConstraintDegs: Rad<f32>  =  thisBoneJoint.hinge_anticlockwise_constraint;
+					if  !( util::rads_approximatelyEquals(cwConstraintDegs, -joint3D::MAX_CONSTRAINT_ANGLE_DEGS, Deg(0.001).into()) ) &&
+						 !( util::rads_approximatelyEquals(acwConstraintDegs, joint3D::MAX_CONSTRAINT_ANGLE_DEGS, Deg(0.001).into()) ) 
 					{
 						// Calc. the reference axis in local space
-						let relativeHingeReferenceAxis: Vector3<f32> = m.times( thisBoneJoint.getHingeReferenceAxis() ).normalise();
+						let relativeHingeReferenceAxis: Vector3<f32> = m * ( thisBoneJoint.reference_axis_uv ).normalize();
 						
 						// Get the signed angle (about the hinge rotation axis) between the hinge reference axis and the hinge-rotation aligned bone UV
 						// Note: ACW rotation is positive, CW rotation is negative.
-						let signedAngleDegs: Deg<f32> = Vec3f.getSignedAngleBetweenDegs(relativeHingeReferenceAxis, thisBoneInnerToOuterUV, relativeHingeRotationAxis);
+						let signedAngleDegs: f32 = util::getSignedAngleBetweenDegs(relativeHingeReferenceAxis, thisBoneInnerToOuterUV, relativeHingeRotationAxis);
 						
 						// Make our bone inner-to-outer UV the hinge reference axis rotated by its maximum clockwise or anticlockwise rotation as required
-			        	if signedAngleDegs > acwConstraintDegs
+			        	if signedAngleDegs > acwConstraintDegs.0
 			        	{	
-			        		thisBoneInnerToOuterUV = Vec3f.rotateAboutAxisDegs(relativeHingeReferenceAxis, acwConstraintDegs, relativeHingeRotationAxis).normalise();		        		
+			        		thisBoneInnerToOuterUV = util::rotateAboutAxis(relativeHingeReferenceAxis, acwConstraintDegs, relativeHingeRotationAxis).normalize();		        		
 			        	}
-			        	else if signedAngleDegs < cwConstraintDegs
+			        	else if signedAngleDegs < cwConstraintDegs.0
 			        	{	
-			        		thisBoneInnerToOuterUV = Vec3f.rotateAboutAxisDegs(relativeHingeReferenceAxis, cwConstraintDegs, relativeHingeRotationAxis).normalise();			        		
+			        		thisBoneInnerToOuterUV = util::rotateAboutAxis(relativeHingeReferenceAxis, cwConstraintDegs, relativeHingeRotationAxis).normalize();			        		
 			        	}
 					}
 					
@@ -551,12 +552,12 @@ impl Chain3D{
 						// Get the inner-to-outer direction of this bone
 						let thisBoneInnerToOuterUV: Vector3<f32> = thisBone.get_direction_uv();
 								
-						let angleBetweenDegs: Deg<f32>   = Vec3f.getAngleBetweenDegs(mBaseboneConstraintUV, thisBoneInnerToOuterUV);
-						let constraintAngleDegs: Deg<f32> = thisBone.joint.get_ball_constraint(); 
+						let angleBetweenDegs: Rad<f32>   = util::getAngleBetweenRads(self.mBaseboneConstraintUV, thisBoneInnerToOuterUV);
+						let constraintAngleDegs: Rad<f32> = thisBone.joint.get_ball_constraint(); 
 					
 						if angleBetweenDegs > constraintAngleDegs
 						{
-							thisBoneInnerToOuterUV = Vec3f.getAngleLimitedUnitVectorDegs(thisBoneInnerToOuterUV, mBaseboneConstraintUV, constraintAngleDegs);
+							thisBoneInnerToOuterUV = util::getAngleLimitedUnitVectorDegs(thisBoneInnerToOuterUV, self.mBaseboneConstraintUV, constraintAngleDegs);
 						}
 						
 						let newEndLocation: Vector3<f32> = thisBone.start + ( thisBoneInnerToOuterUV * thisBoneLength);
@@ -580,11 +581,11 @@ impl Chain3D{
 						let thisBoneInnerToOuterUV: Vector3<f32> = thisBone.get_direction_uv();
 								
 						// Constrain about the relative basebone constraint unit vector as neccessary
-						let angleBetweenDegs: Deg<f32>   = Vec3f.getAngleBetweenDegs(self.mBaseboneRelativeConstraintUV, thisBoneInnerToOuterUV);
-						let constraintAngleDegs: Deg<f32> = thisBone.joint.get_ball_constraint();
+						let angleBetweenDegs: Rad<f32>   = util::getAngleBetweenRads(self.basebone_relative_constraint_uv, thisBoneInnerToOuterUV);
+						let constraintAngleDegs: Rad<f32> = thisBone.joint.get_ball_constraint();
 						if angleBetweenDegs > constraintAngleDegs
 						{
-							thisBoneInnerToOuterUV = Vec3f.getAngleLimitedUnitVectorDegs(thisBoneInnerToOuterUV, mBaseboneRelativeConstraintUV, constraintAngleDegs);
+							thisBoneInnerToOuterUV = util::getAngleLimitedUnitVectorDegs(thisBoneInnerToOuterUV, self.basebone_relative_constraint_uv, constraintAngleDegs);
 						}
 						
 						// Set the end location
@@ -599,30 +600,30 @@ impl Chain3D{
 					else if self.basebone_constraint_type == BaseboneConstraintType3D::GlobalHinge
 					{
 						let thisJoint  =  thisBone.joint;
-						let hingeRotationAxis: Vector3<f32>  =  thisJoint.getHingeRotationAxis();
-						let cwConstraintDegs: Deg<f32>   = -thisJoint.getHingeClockwiseConstraintDegs();     // Clockwise rotation is negative!
-						let acwConstraintDegs: Deg<f32>  =  thisJoint.getHingeAnticlockwiseConstraintDegs();
+						let hingeRotationAxis: Vector3<f32>  =  thisJoint.rotation_axis_uv;
+						let cwConstraintDegs: Rad<f32>   = -thisJoint.hinge_clockwise_constraint;     // Clockwise rotation is negative!
+						let acwConstraintDegs: Rad<f32>  =  thisJoint.hinge_anticlockwise_constraint;
 						
 						// Get the inner-to-outer direction of this bone and project it onto the global hinge rotation axis
-						let thisBoneInnerToOuterUV: Vector3<f32> = thisBone.get_direction_uv().projectOntoPlane(hingeRotationAxis);
+						let thisBoneInnerToOuterUV: Vector3<f32> =  util::projectOntoPlane(&thisBone.get_direction_uv(), &hingeRotationAxis).unwrap();
 								
 						// If we have a global hinge which is not freely rotating then we must constrain about the reference axis
-						if  !( Utils.approximatelyEquals(cwConstraintDegs , -joint::Joint3D.MAX_CONSTRAINT_ANGLE_DEGS, 0.01f) &&
-							    Utils.approximatelyEquals(acwConstraintDegs,  joint::Joint3D.MAX_CONSTRAINT_ANGLE_DEGS, 0.01f) ) 
+						if  !( util::rads_approximatelyEquals(cwConstraintDegs , -joint3D::MAX_CONSTRAINT_ANGLE_DEGS, Deg(0.01).into()) &&
+							    util::rads_approximatelyEquals(acwConstraintDegs,  joint3D::MAX_CONSTRAINT_ANGLE_DEGS, Deg(0.01).into()) ) 
 						{
 							// Grab the hinge reference axis and calculate the current signed angle between it and our bone direction (about the hinge
 							// rotation axis). Note: ACW rotation is positive, CW rotation is negative.
-							let hingeReferenceAxis: Vector3<f32> = thisJoint.getHingeReferenceAxis();
-							let signedAngleDegs: Deg<f32> = Vec3f.getSignedAngleBetweenDegs(hingeReferenceAxis, thisBoneInnerToOuterUV, hingeRotationAxis);
+							let hingeReferenceAxis: Vector3<f32> = thisJoint.reference_axis_uv;
+							let signedAngleDegs: f32 = util::getSignedAngleBetweenDegs(hingeReferenceAxis, thisBoneInnerToOuterUV, hingeRotationAxis);
 							
 							// Constrain as necessary
-				        	if signedAngleDegs > acwConstraintDegs
+				        	if signedAngleDegs > acwConstraintDegs.0
 				        	{	
-				        		thisBoneInnerToOuterUV = Vec3f.rotateAboutAxisDegs(hingeReferenceAxis, acwConstraintDegs, hingeRotationAxis).normalise();		        		
+				        		thisBoneInnerToOuterUV = util::rotateAboutAxis(hingeReferenceAxis, acwConstraintDegs, hingeRotationAxis).normalize();		        		
 				        	}
-				        	else if signedAngleDegs < cwConstraintDegs
+				        	else if signedAngleDegs < cwConstraintDegs.0
 				        	{	
-				        		thisBoneInnerToOuterUV = Vec3f.rotateAboutAxisDegs(hingeReferenceAxis, cwConstraintDegs, hingeRotationAxis).normalise();			        		
+				        		thisBoneInnerToOuterUV = util::rotateAboutAxis(hingeReferenceAxis, cwConstraintDegs, hingeRotationAxis).normalize();			        		
 				        	}
 						}
 						
@@ -638,30 +639,30 @@ impl Chain3D{
 					else if self.basebone_constraint_type == BaseboneConstraintType3D::LocalHinge
 					{
 						let thisJoint  =  thisBone.joint;
-						let  hingeRotationAxis: Vector3<f32>  =  self.mBaseboneRelativeConstraintUV;                   // Basebone relative constraint is our hinge rotation axis!
-						let  cwConstraintDegs: Deg<f32>   = -thisJoint.getHingeClockwiseConstraintDegs();     // Clockwise rotation is negative!
-						let  acwConstraintDegs: Deg<f32>  =  thisJoint.getHingeAnticlockwiseConstraintDegs();
+						let  hingeRotationAxis: Vector3<f32>  =  self.basebone_relative_constraint_uv;                   // Basebone relative constraint is our hinge rotation axis!
+						let  cwConstraintDegs: Rad<f32>   = -thisJoint.hinge_clockwise_constraint;     // Clockwise rotation is negative!
+						let  acwConstraintDegs: Rad<f32>  =  thisJoint.hinge_anticlockwise_constraint;
 						
 						// Get the inner-to-outer direction of this bone and project it onto the global hinge rotation axis
-						let thisBoneInnerToOuterUV: Vector3<f32> = thisBone.get_direction_uv().projectOntoPlane(hingeRotationAxis);
+						let thisBoneInnerToOuterUV: Vector3<f32> = util::projectOntoPlane(&thisBone.get_direction_uv(), &hingeRotationAxis).unwrap();
 						
 						// If we have a local hinge which is not freely rotating then we must constrain about the reference axis
-						if  !( Utils.approximatelyEquals(cwConstraintDegs , -FabrikJoint3D.MAX_CONSTRAINT_ANGLE_DEGS, 0.01) &&
-							    Utils.approximatelyEquals(acwConstraintDegs,  FabrikJoint3D.MAX_CONSTRAINT_ANGLE_DEGS, 0.01) ) 
+						if  !( util::rads_approximatelyEquals(cwConstraintDegs , -joint3D::MAX_CONSTRAINT_ANGLE_DEGS, Deg(0.01).into()) &&
+							    util::rads_approximatelyEquals(acwConstraintDegs,  joint3D::MAX_CONSTRAINT_ANGLE_DEGS, Deg(0.01).into()) ) 
 						{
 							// Grab the hinge reference axis and calculate the current signed angle between it and our bone direction (about the hinge
 							// rotation axis). Note: ACW rotation is positive, CW rotation is negative.
 							let hingeReferenceAxis: Vector3<f32> = self.mBaseboneRelativeReferenceConstraintUV; 
-							let signedAngleDegs: Deg<f32>  = Vec3f.getSignedAngleBetweenDegs(hingeReferenceAxis, thisBoneInnerToOuterUV, hingeRotationAxis);
+							let signedAngleDegs: f32  =util::getSignedAngleBetweenDegs(hingeReferenceAxis, thisBoneInnerToOuterUV, hingeRotationAxis);
 							
 							// Constrain as necessary
-				        	if signedAngleDegs > acwConstraintDegs
+				        	if signedAngleDegs > acwConstraintDegs.0
 				        	{	
-				        		thisBoneInnerToOuterUV = Vec3f.rotateAboutAxisDegs(hingeReferenceAxis, acwConstraintDegs, hingeRotationAxis).normalise();		        		
+				        		thisBoneInnerToOuterUV = util::rotateAboutAxis(hingeReferenceAxis, acwConstraintDegs, hingeRotationAxis).normalize();		        		
 				        	}
-				        	else if signedAngleDegs < cwConstraintDegs
+				        	else if signedAngleDegs < cwConstraintDegs.0
 				        	{	
-				        		thisBoneInnerToOuterUV = Vec3f.rotateAboutAxisDegs(hingeReferenceAxis, cwConstraintDegs, hingeRotationAxis).normalise();			        		
+				        		thisBoneInnerToOuterUV = util::rotateAboutAxis(hingeReferenceAxis, cwConstraintDegs, hingeRotationAxis).normalize();			        		
 				        	}
 						}
 						
@@ -693,6 +694,6 @@ impl Chain3D{
 		*/
 		
 		// Finally, calculate and return the distance between the current effector location and the target.
-		return Ok(Vec3f.distanceBetween(self.m_chain[self.m_chain.len()-1].end, target));
+		return Ok(util::distanceBetween(self.m_chain[self.m_chain.len()-1].end, target));
 	}
 }

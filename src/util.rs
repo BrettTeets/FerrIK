@@ -269,6 +269,24 @@ pub fn createRotationMatrix(referenceDirection: Vector3<f32>) -> Matrix3<f32>
 		
 	}
 
+pub fn getSignedAngleBetweenDegs(referenceVector: Vector3<f32>, otherVector: Vector3<f32>,
+    normalVector: Vector3<f32>) -> f32
+{
+    let unsignedAngle = getAngleBetweenRads(referenceVector, otherVector);
+    
+    //TODO look into this one. somethings up with going from rads to f32. Ends up being used ina greater than less than check
+    let sign: f32 = sign(referenceVector.cross(otherVector).dot(normalVector));		
+    return unsignedAngle.0 * sign;
+}
+
+pub fn distanceBetween(v1: Vector3<f32>, v2: Vector3<f32>) -> f32
+	{
+		let dx = v2.x - v1.x;
+		let dy = v2.y - v1.y;
+		let dz = v2.z - v1.z;
+		return (dx * dx + dy * dy + dz * dz).sqrt();
+	}
+
 /*pub fn lengthIsApproximately(float value, float tolerance) -> bool
 {
     // Check for a valid tolerance
