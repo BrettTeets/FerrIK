@@ -90,3 +90,31 @@ pub fn getConstrainedUV(directionUV: Vector2<f32>, baselineUV: Vector2<f32>,
     { 
         return v1.distance(v2); 
     }
+
+    pub fn validateDirectionUV(directionUV: Vector2<f32>)
+	{
+		// Ensure that the magnitude of this direction unit vector is greater than zero
+		if  directionUV.magnitude() <= 0.0 
+		{
+			panic!("Vec2f direction unit vector cannot be zero.");
+		}
+	}
+
+    pub fn approximatelyEquals(v1: Vector2<f32>, v2: Vector2<f32>, tolerance: f32) -> bool
+	{
+		if tolerance < 0.0
+        {	
+            panic!("Equality threshold must be greater than or equal to 0.0f");	
+        }
+        return (v1 - v2).magnitude() < tolerance;
+		//return (v1.x - v2.x).abs() < tolerance && (v1.y - v2.y).abs() < tolerance;
+	}
+
+    pub fn validateLength(length: f32)
+	{
+		// Ensure that the magnitude of this direction unit vector is not zero
+		if length < 0.0
+		{
+			panic!("Length must be a greater than or equal to zero.");
+		}
+	}
