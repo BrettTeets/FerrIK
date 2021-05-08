@@ -42,7 +42,7 @@ impl Bone3D{
 
     //the direction. I dont know what uv is referring to.
     pub fn get_direction_uv(&self) -> Vector3<f32>{
-        return self.end - self.start;
+        return self.end - self.start; //This is wrong.
     }
 
     pub fn get_global_pitch_degs(&self) -> cgmath::Deg<f32>{
