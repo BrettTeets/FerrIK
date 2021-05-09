@@ -74,22 +74,23 @@ impl Chain{
         for index in (0..self.mChain.len()).rev()
 		{
 			// Get the length of the bone we're working on
-            //Things I have treid.
-			    //let mut thisBone: Bone = self.mChain[index];
-                //let thisBone: &mut Bone = self.mChain.get_mut(index).unwrap();
-            let mut thisBone: Bone = self.mChain[index];
-			let thisBoneLength: f32  = thisBone.length();
-			let thisBoneJoint: &Joint = thisBone.getJoint(); //odd, this one asked to be a reference.
-			let thisBoneJointType: JointType = thisBone.getJointType();
+            
+            let chain_length = self.mChain.len();
+            let thisBoneDirectionUV: Vector3<f32> = self.mChain[index].getDirectionUV();
+            let thisBoneLength: f32  = self.mChain[index].length();
+			let thisBoneJoint: Joint = self.mChain[index].getJoint(); //odd, this one asked to be a reference.
+			let thisBoneJointType: JointType = self.mChain[index].getJointType();
+            //let thisBone: &mut Bone = self.mChain.get_mut(index).unwrap();
+			
 
 			// If we are NOT working on the end effector bone
-			if index != self.mChain.len() - 1
+			if index != chain_length - 1
 			{
 				// Get the outer-to-inner unit vector of the bone further out
 				let outerBoneOuterToInnerUV: Vector3<f32> = -self.mChain[index+1].getDirectionUV();
 
 				// Get the outer-to-inner unit vector of this bone
-				let mut thisBoneOuterToInnerUV: Vector3<f32> = -thisBone.getDirectionUV();
+				let mut thisBoneOuterToInnerUV: Vector3<f32> = -thisBoneDirectionUV;
 				
 				// Get the joint type for this bone and handle constraints on thisBoneInnerToOuterUV				
 				if thisBoneJointType == JointType::BALL
@@ -137,10 +138,10 @@ impl Chain{
 				// At this stage we have a outer-to-inner unit vector for this bone which is within our constraints,
 				// so we can set the new inner joint location to be the end joint location of this bone plus the
 				// outer-to-inner direction unit vector multiplied by the length of the bone.
-				let newStartLocation: Vector3<f32> = thisBone.getEndLocation() + ( thisBoneOuterToInnerUV * (thisBoneLength) );
+				let newStartLocation: Vector3<f32> = self.mChain[index].getEndLocation() + ( thisBoneOuterToInnerUV * (thisBoneLength) );
 
 				// Set the new start joint location for this bone
-				thisBone.setStartLocation(newStartLocation);
+				self.mChain[index].setStartLocation(newStartLocation);
 
 				// If we are not working on the basebone, then we also set the end joint location of
 				// the previous bone in the chain (i.e. the bone closer to the base) to be the new
@@ -153,10 +154,10 @@ impl Chain{
 			else // If we ARE working on the end effector bone...
 			{
 				// Snap the end effector's end location to the target
-				thisBone.setEndLocation(target);
+				self.mChain[index].setEndLocation(target);
 				
 				// Get the UV between the target / end-location (which are now the same) and the start location of this bone
-				let thisBoneOuterToInnerUV: Vector3<f32> = -thisBone.getDirectionUV();
+				let mut thisBoneOuterToInnerUV: Vector3<f32> = -self.mChain[index].getDirectionUV();
 				
 				// If the end effector is global hinged then we have to snap to it, then keep that
 				// resulting outer-to-inner UV in the plane of the hinge rotation axis
@@ -189,7 +190,7 @@ impl Chain{
 				let newStartLocation: Vector3<f32> = target + ( thisBoneOuterToInnerUV * (thisBoneLength) );
 				
 				// Set the new start joint location for this bone to be new start location...
-				thisBone.setStartLocation(newStartLocation);
+				self.mChain[index].setStartLocation(newStartLocation);
 
 				// ...and set the end joint location of the bone further in to also be at the new start location (if there IS a bone
 				// further in - this may be a single bone chain)
@@ -206,18 +207,18 @@ impl Chain{
 		//for (int loop = 0; loop < mChain.size(); ++loop)
         for index in 0..self.mChain.len()
 		{
-			let thisBone: Bone = self.mChain[index];
-			let thisBoneLength: f32  = thisBone.length();
+			//let thisBone: &mut Bone = self.mChain.get_mut(index).unwrap();
+			let thisBoneLength: f32  = self.mChain[index].length();
 
 			// If we are not working on the basebone
 			if index != 0
 			{
 				// Get the inner-to-outer direction of this bone as well as the previous bone to use as a baseline
-				let thisBoneInnerToOuterUV: Vector3<f32> = thisBone.getDirectionUV();
+				let mut thisBoneInnerToOuterUV: Vector3<f32> = self.mChain[index].getDirectionUV();
 				let prevBoneInnerToOuterUV: Vector3<f32> = self.mChain[index-1].getDirectionUV();
 				
 				// Dealing with a ball joint?
-				let thisBoneJoint: &Joint = thisBone.getJoint();
+				let thisBoneJoint: Joint = self.mChain[index].getJoint();
 				let jointType: JointType = thisBoneJoint.getJointType();
 				if jointType == JointType::BALL
 				{					
@@ -305,10 +306,10 @@ impl Chain{
 				// At this stage we have a outer-to-inner unit vector for this bone which is within our constraints,
 				// so we can set the new inner joint location to be the end joint location of this bone plus the
 				// outer-to-inner direction unit vector multiplied by the length of the bone.
-				let newEndLocation: Vector3<f32> = thisBone.getStartLocation() + ( thisBoneInnerToOuterUV * (thisBoneLength) );
+				let newEndLocation: Vector3<f32> = self.mChain[index].getStartLocation() + ( thisBoneInnerToOuterUV * (thisBoneLength) );
 
 				// Set the new start joint location for this bone
-				thisBone.setEndLocation(newEndLocation);
+				self.mChain[index].setEndLocation(newEndLocation);
 
 				// If we are not working on the end effector bone, then we set the start joint location of the next bone in
 				// the chain (i.e. the bone closer to the target) to be the new end joint location of this bone.
@@ -321,11 +322,12 @@ impl Chain{
 				// If the base location is fixed then snap the start location of the basebone back to the fixed base...
 				if self.mFixedBaseMode
 				{
-					thisBone.setStartLocation(self.mFixedBaseLocation);
+					self.mChain[index].setStartLocation(self.mFixedBaseLocation);
 				}
 				else // ...otherwise project it backwards from the end to the start by its length.
 				{
-					thisBone.setStartLocation( thisBone.getEndLocation() - ( thisBone.getDirectionUV() * (thisBoneLength) ) );
+                    let temp = self.mChain[index].getEndLocation() - ( self.mChain[index].getDirectionUV() * (thisBoneLength));
+					self.mChain[index].setStartLocation( temp  ) ;
 				}
 				
 				// If the basebone is unconstrained then process it as usual...
@@ -333,8 +335,8 @@ impl Chain{
 				{
 					// Set the new end location of this bone, and if there are more bones,
 					// then set the start location of the next bone to be the end location of this bone
-					let newEndLocation: Vector3<f32> = thisBone.getStartLocation() + ( thisBone.getDirectionUV() * (thisBoneLength) );
-					thisBone.setEndLocation(newEndLocation);	
+					let newEndLocation: Vector3<f32> = self.mChain[index].getStartLocation() + ( self.mChain[index].getDirectionUV() * (thisBoneLength) );
+					self.mChain[index].setEndLocation(newEndLocation);	
 					
 					if self.mChain.len() > 1 { 
 					  self.mChain[1].setStartLocation(newEndLocation); 
@@ -345,19 +347,19 @@ impl Chain{
 					if self.mBaseboneConstraintType == BaseboneConstraintType::GLOBAL_ROTOR
 					{	
 						// Get the inner-to-outer direction of this bone
-						let thisBoneInnerToOuterUV: Vector3<f32> = thisBone.getDirectionUV();
+						let mut thisBoneInnerToOuterUV: Vector3<f32> = self.mChain[index].getDirectionUV();
 								
 						let angleBetweenDegs: Rad<f32>    = util::getAngleBetweenDegs(self.mBaseboneConstraintUV, thisBoneInnerToOuterUV);
-						let constraintAngleDegs: Rad<f32> = thisBone.getBallJointConstraintDegs(); 
+						let constraintAngleDegs: Rad<f32> = self.mChain[index].getBallJointConstraintDegs(); 
 					
 						if angleBetweenDegs > constraintAngleDegs
 						{
 							thisBoneInnerToOuterUV = util::getAngleLimitedUnitVectorDegs(thisBoneInnerToOuterUV, self.mBaseboneConstraintUV, constraintAngleDegs);
 						}
 						
-						let newEndLocation: Vector3<f32> = thisBone.getStartLocation() + ( thisBoneInnerToOuterUV * (thisBoneLength) );
+						let newEndLocation: Vector3<f32> = self.mChain[index].getStartLocation() + ( thisBoneInnerToOuterUV * (thisBoneLength) );
 						
-						thisBone.setEndLocation( newEndLocation );
+						self.mChain[index].setEndLocation( newEndLocation );
 						
 						// Also, set the start location of the next bone to be the end location of this bone
 						if self.mChain.len() > 1 { 
@@ -373,19 +375,19 @@ impl Chain{
 						// us so we are now free to use it here.
 						
 						// Get the inner-to-outer direction of this bone
-						let thisBoneInnerToOuterUV: Vector3<f32> = thisBone.getDirectionUV();
+						let mut thisBoneInnerToOuterUV: Vector3<f32> = self.mChain[index].getDirectionUV();
 								
 						// Constrain about the relative basebone constraint unit vector as neccessary
 						let angleBetweenDegs: Rad<f32>    = util::getAngleBetweenDegs(self.mBaseboneRelativeConstraintUV, thisBoneInnerToOuterUV);
-						let constraintAngleDegs: Rad<f32> = thisBone.getBallJointConstraintDegs();
+						let constraintAngleDegs: Rad<f32> = self.mChain[index].getBallJointConstraintDegs();
 						if angleBetweenDegs > constraintAngleDegs
 						{
 							thisBoneInnerToOuterUV = util::getAngleLimitedUnitVectorDegs(thisBoneInnerToOuterUV, self.mBaseboneRelativeConstraintUV, constraintAngleDegs);
 						}
 						
 						// Set the end location
-						let newEndLocation: Vector3<f32> = thisBone.getStartLocation() + ( thisBoneInnerToOuterUV *(thisBoneLength) );						
-						thisBone.setEndLocation( newEndLocation );
+						let newEndLocation: Vector3<f32> = self.mChain[index].getStartLocation() + ( thisBoneInnerToOuterUV *(thisBoneLength) );						
+						self.mChain[index].setEndLocation( newEndLocation );
 						
 						// Also, set the start location of the next bone to be the end location of this bone
 						if self.mChain.len() > 1 { 
@@ -394,13 +396,13 @@ impl Chain{
 					}
 					else if self.mBaseboneConstraintType == BaseboneConstraintType::GLOBAL_HINGE
 					{
-						let thisJoint: &Joint  =  thisBone.getJoint();
+						let thisJoint: Joint  =  self.mChain[index].getJoint();
 						let hingeRotationAxis: Vector3<f32>  =  thisJoint.getHingeRotationAxis();
 						let cwConstraintDegs: Rad<f32>   = -thisJoint.getHingeClockwiseConstraintDegs();     // Clockwise rotation is negative!
 						let acwConstraintDegs: Rad<f32>  =  thisJoint.getHingeAnticlockwiseConstraintDegs();
 						
 						// Get the inner-to-outer direction of this bone and project it onto the global hinge rotation axis
-						let thisBoneInnerToOuterUV: Vector3<f32> = util::projectOntoPlane(thisBone.getDirectionUV(), hingeRotationAxis);
+						let mut thisBoneInnerToOuterUV: Vector3<f32> = util::projectOntoPlane(self.mChain[index].getDirectionUV(), hingeRotationAxis);
 								
 						// If we have a global hinge which is not freely rotating then we must constrain about the reference axis
 						if  !( util::approximatelyEquals(cwConstraintDegs.0 , -joint::MAX_CONSTRAINT_ANGLE_DEGS.0, 0.01) &&
@@ -423,8 +425,8 @@ impl Chain{
 						}
 						
 						// Calc and set the end location of this bone
-						let newEndLocation: Vector3<f32> = thisBone.getStartLocation() + ( thisBoneInnerToOuterUV * (thisBoneLength) );						
-						thisBone.setEndLocation( newEndLocation );
+						let newEndLocation: Vector3<f32> = self.mChain[index].getStartLocation() + ( thisBoneInnerToOuterUV * (thisBoneLength) );						
+						self.mChain[index].setEndLocation( newEndLocation );
 						
 						// Also, set the start location of the next bone to be the end location of this bone
 						if self.mChain.len() > 1 { 
@@ -433,13 +435,13 @@ impl Chain{
 					}
 					else if self.mBaseboneConstraintType == BaseboneConstraintType::LOCAL_HINGE
 					{
-						let thisJoint: &Joint  =  thisBone.getJoint();
+						let thisJoint: Joint  =  self.mChain[index].getJoint();
 						let hingeRotationAxis: Vector3<f32>  =  self.mBaseboneRelativeConstraintUV;                   // Basebone relative constraint is our hinge rotation axis!
 						let cwConstraintDegs: Rad<f32>   = -thisJoint.getHingeClockwiseConstraintDegs();     // Clockwise rotation is negative!
 						let acwConstraintDegs: Rad<f32>  =  thisJoint.getHingeAnticlockwiseConstraintDegs();
 						
 						// Get the inner-to-outer direction of this bone and project it onto the global hinge rotation axis
-						let thisBoneInnerToOuterUV: Vector3<f32> = util::projectOntoPlane(thisBone.getDirectionUV(), hingeRotationAxis);
+						let mut thisBoneInnerToOuterUV: Vector3<f32> = util::projectOntoPlane(self.mChain[index].getDirectionUV(), hingeRotationAxis);
 						
 						// If we have a local hinge which is not freely rotating then we must constrain about the reference axis
 						if  !( util::approximatelyEquals(cwConstraintDegs.0 , -joint::MAX_CONSTRAINT_ANGLE_DEGS.0, 0.01) &&
@@ -462,8 +464,8 @@ impl Chain{
 						}
 						
 						// Calc and set the end location of this bone
-						let newEndLocation: Vector3<f32> = thisBone.getStartLocation()+ ( thisBoneInnerToOuterUV * (thisBoneLength) );						
-						thisBone.setEndLocation( newEndLocation );
+						let newEndLocation: Vector3<f32> = self.mChain[index].getStartLocation()+ ( thisBoneInnerToOuterUV * (thisBoneLength) );						
+						self.mChain[index].setEndLocation( newEndLocation );
 						
 						// Also, set the start location of the next bone to be the end location of this bone
 						if self.mChain.len() > 1 { 

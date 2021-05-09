@@ -53,8 +53,8 @@ impl Bone{
     { self.mJoint.set(joint); }
 
     //Should joint be ina box as a pointer?
-    pub fn getJoint(&self)	-> &Joint
-    { return &self.mJoint; }
+    pub fn getJoint(&self)	-> Joint
+    { return self.mJoint; }
 
     pub fn getJointType(&self)	-> joint::JointType
     { return self.mJoint.getJointType(); }

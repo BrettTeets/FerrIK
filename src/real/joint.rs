@@ -12,6 +12,7 @@ pub enum JointType
     LOCAL_HINGE
 }
 
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub struct Joint{
     mRotorConstraintDegs: Rad<f32>,
     mHingeClockwiseConstraintDegs: Rad<f32>,
