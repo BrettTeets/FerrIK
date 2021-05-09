@@ -57,6 +57,417 @@ impl Chain{
             mUseEmbeddedTarget: false,
         }
     }
+
+    pub fn addBone(&mut self, bone: Bone)
+	{
+		// Add the new bone to the end of the ArrayList of bones
+		// If this is the basebone...
+		if self.mChain.len() == 1
+		{
+			// ...then keep a copy of the fixed start location...
+			self.mFixedBaseLocation =  bone.getStartLocation();
+			
+			// ...and set the basebone constraint UV to be around the initial bone direction
+			self.mBaseboneConstraintUV = bone.getDirectionUV();
+
+            self.mChain.push(bone);
+            self.updateChainLength();
+		}
+        else{
+            self.mChain.push(bone);
+            self.updateChainLength();
+        }
+		
+		// Increment the number of bones in the chain and update the chain length
+		
+	}
+
+    pub fn removeBone(&mut self, boneNumber: usize)
+	{
+		// If the bone number is a bone which exists...
+		if boneNumber < self.mChain.len()
+		{	
+			// ...then remove the bone, decrease the bone count and update the chain length.
+			self.mChain.remove(boneNumber);
+			self.updateChainLength();
+		}
+		else
+		{
+			panic!("Bone {} does not exist to be removed from the chain. Bones are zero indexed.", boneNumber);
+		}
+	}
+
+    pub fn solveForEmbeddedTarget(&mut self) -> f32
+	{
+		if self.mUseEmbeddedTarget { 
+		  return self.solveForTarget(self.mEmbeddedTarget); 
+		}
+		else { 
+		  panic!("This chain does not have embedded targets enabled - enable with setEmbeddedTargetMode(true)."); 
+		}
+	}
+
+    pub fn solveForTarget(&mut self, newTarget: Vector3<f32>) -> f32
+	{	
+		// If we have both the same target and base location as the last run then do not solve
+		if  util::v_approximatelyEquals(self.mLastTargetLocation, newTarget, 0.001) &&
+			 util::v_approximatelyEquals(self.mLastBaseLocation, self.getBaseLocation(), 0.001) 
+		{
+			return self.mCurrentSolveDistance;
+		}
+		
+		/***
+		 * NOTE: We must allow the best solution of THIS run to be used for a new target or base location - we cannot
+		 * just use the last solution (even if it's better) - because that solution was for a different target / base
+		 * location combination and NOT for the current setup.
+		 */
+						
+		// Declare a list of bones to use to store our best solution
+		let mut bestSolution: Vec<Bone> = Vec::new();
+		
+		// We start with a best solve distance that can be easily beaten
+		let mut bestSolveDistance = f32::MAX;
+		
+		// We'll also keep track of the solve distance from the last pass
+		let mut lastPassSolveDistance = f32::MAX;
+		
+		// Allow up to our iteration limit attempts at solving the chain
+		let mut solveDistance: f32;
+		//for (int loop = 0; loop < mMaxIterationAttempts; ++loop)
+        for i in 0..self.mMaxIterationAttempts
+		{	
+			// Solve the chain for this target
+			solveDistance = self.solveIK(newTarget);
+			
+			// Did we solve it for distance? If so, update our best distance and best solution, and also
+			// update our last pass solve distance. Note: We will ALWAYS beat our last solve distance on the first run. 
+			if solveDistance < bestSolveDistance
+			{	
+				bestSolveDistance = solveDistance;
+				bestSolution = self.cloneIkChain();
+				
+				// If we are happy that this solution meets our distance requirements then we can exit the loop now
+				if solveDistance <= self.mSolveDistanceThreshold
+				{				
+					break;
+				}
+			}
+			else // Did not solve to our satisfaction? Okay...
+			{
+				// Did we grind to a halt? If so break out of loop to set the best distance and solution that we have
+				if  (solveDistance - lastPassSolveDistance).abs() < self.mMinIterationChange 
+				{
+					//System.out.println("Ground to halt on iteration: " + loop);
+					break;
+				}
+			}
+			
+			// Update the last pass solve distance
+			lastPassSolveDistance = solveDistance;
+			
+		} // End of loop
+		
+		// Update our solve distance and chain configuration to the best solution found
+		self.mCurrentSolveDistance = bestSolveDistance;
+		self.mChain = bestSolution;
+		
+		// Update our base and target locations
+		self.mLastBaseLocation = self.getBaseLocation();
+		self.mLastTargetLocation = newTarget;
+		
+		return self.mCurrentSolveDistance;
+	}
+
+    pub fn updateChainLength(&mut self)
+	{
+		// We start adding up the length of the bones from an initial length of zero
+		self.mChainLength = 0.0;
+
+		// Loop over all the bones in the chain, adding the length of each bone to the mChainLength property
+		for bone in self.mChain.iter()
+		{
+			self.mChainLength += bone.length();
+		}
+	}
+
+    pub fn updateEmbeddedTarget(&mut self, newEmbeddedTarget: Vector3<f32>)
+	{
+		// Using embedded target mode? Overwrite embedded target with provided location
+		if self.mUseEmbeddedTarget { 
+		  self.mEmbeddedTarget = newEmbeddedTarget; 
+		}
+		else { 
+		  panic!("This chain does not have embedded targets enabled - enable with setEmbeddedTargetMode(true)."); 
+		}
+	}
+
+    fn cloneIkChain(&self) -> Vec<Bone>
+	{
+		// Create a new Vector of FabrikBone3D objects of that size
+		let mut clonedChain: Vec<Bone> = Vec::new();
+
+		// For each bone in the chain being cloned...		
+		for bone in self.mChain.iter()
+		{
+			// Use the copy constructor to create a new FabrikBone3D with the values set from the source FabrikBone3D.
+			// and add it to the cloned chain.
+			clonedChain.push(bone.clone() );
+		}
+		
+		return clonedChain;
+	}
+}
+
+//setters
+impl Chain{
+    pub fn setBaseboneRelativeConstraintUV(&mut self, constraintUV: Vector3<f32>) 
+    { self.mBaseboneRelativeConstraintUV = constraintUV; }
+
+    pub fn  setBaseboneRelativeReferenceConstraintUV(&mut self, constraintUV: Vector3<f32>) 
+    { self.mBaseboneRelativeReferenceConstraintUV = constraintUV; }
+	
+	pub fn setEmbeddedTargetMode(&mut self, value: bool) 
+    { self.mUseEmbeddedTarget = value; }
+
+    pub fn setRotorBaseboneConstraint(&mut self,  rotorType: BaseboneConstraintType,
+          constraintAxis: Vector3<f32>, mut angleDegs: Rad<f32>)
+	{
+		// Sanity checking
+		if self.mChain.is_empty()	{ 
+		  panic!("Chain must contain a basebone before we can specify the basebone constraint type."); 
+		}		
+		if constraintAxis.magnitude() <= 0.0 { 
+		  panic!("Constraint axis cannot be zero."); 
+		}
+		if angleDegs < Rad(0.0)  { 
+		  angleDegs = Rad(0.0); 
+		}
+		if angleDegs > Rad(3.1415) { 
+		  angleDegs = Rad(3.1415);
+		}		
+		if  !(rotorType == BaseboneConstraintType::GLOBAL_ROTOR ||
+             rotorType == BaseboneConstraintType::LOCAL_ROTOR) 
+		{
+			panic!("The only valid rotor types for this method are GLOBAL_ROTOR and LOCAL_ROTOR.");
+		}
+				
+		// Set the constraint type, axis and angle
+		self.mBaseboneConstraintType = rotorType;
+		self.mBaseboneConstraintUV   = constraintAxis.normalize();
+		self.mBaseboneRelativeConstraintUV = self.mBaseboneConstraintUV;
+		self.getBone(0).getJoint().setAsBallJoint(angleDegs);
+	}
+    
+    pub fn setHingeBaseboneConstraint(&mut self,  hingeType: BaseboneConstraintType,
+        hingeRotationAxis: Vector3<f32>, cwConstraintDegs: Rad<f32>, acwConstraintDegs: Rad<f32>, hingeReferenceAxis: Vector3<f32>)
+	{
+		// Sanity checking
+		if self.mChain.is_empty()	{ 
+		  panic!("Chain must contain a basebone before we can specify the basebone constraint type."); 
+		}		
+		if  hingeRotationAxis.magnitude() <= 0.0   { 
+		  panic!("Hinge rotation axis cannot be zero.");
+		}
+		if hingeReferenceAxis.magnitude() <= 0.0  { 
+		  panic!("Hinge reference axis cannot be zero.");	
+		}
+		if  !( util::perpendicular(hingeRotationAxis, hingeReferenceAxis) )  {
+			panic!("The hinge reference axis must be in the plane of the hinge rotation axis, that is, they must be perpendicular.");
+		}
+		if  !(hingeType == BaseboneConstraintType::GLOBAL_HINGE || hingeType == BaseboneConstraintType::LOCAL_HINGE)  {	
+			panic!("The only valid hinge types for this method are GLOBAL_HINGE and LOCAL_HINGE.");
+		}
+		
+		// Set the constraint type, axis and angle
+		self.mBaseboneConstraintType = hingeType;
+		self.mBaseboneConstraintUV = hingeRotationAxis.normalize();
+		
+		let mut hinge: Joint = Joint::new();
+		
+		if hingeType == BaseboneConstraintType::GLOBAL_HINGE
+		{
+			hinge.setHinge(JointType::GLOBAL_HINGE, hingeRotationAxis, cwConstraintDegs, acwConstraintDegs, hingeReferenceAxis);
+		}
+		else
+		{
+			hinge.setHinge(JointType::LOCAL_HINGE, hingeRotationAxis, cwConstraintDegs, acwConstraintDegs, hingeReferenceAxis);
+		}
+		self.getBone(0).setJoint(hinge);
+	}
+
+    pub fn setFreelyRotatingGlobalHingedBasebone(&mut self, hingeRotationAxis: Vector3<f32>)
+	{
+		self.setHingeBaseboneConstraint(BaseboneConstraintType::GLOBAL_HINGE, hingeRotationAxis, Rad(3.1415), Rad(3.1415), util::genPerpendicularVectorQuick(hingeRotationAxis) );
+	}
+
+    pub fn setFreelyRotatingLocalHingedBasebone(&mut self, hingeRotationAxis: Vector3<f32>)
+	{
+		self.setHingeBaseboneConstraint(BaseboneConstraintType::LOCAL_HINGE, hingeRotationAxis, Rad(3.1415), Rad(3.1415), util::genPerpendicularVectorQuick(hingeRotationAxis) );
+	}
+
+    pub fn setLocalHingedBasebone(&mut self, hingeRotationAxis: Vector3<f32>, cwDegs: Rad<f32>, acwDegs: Rad<f32>, hingeReferenceAxis: Vector3<f32>)
+	{
+		self.setHingeBaseboneConstraint(BaseboneConstraintType::LOCAL_HINGE, hingeRotationAxis, cwDegs, acwDegs, hingeReferenceAxis);
+	}
+
+    pub fn setGlobalHingedBasebone(&mut self, hingeRotationAxis: Vector3<f32>, cwDegs: Rad<f32>, acwDegs: Rad<f32>, hingeReferenceAxis: Vector3<f32>)
+	{
+		self.setHingeBaseboneConstraint(BaseboneConstraintType::GLOBAL_HINGE, hingeRotationAxis, cwDegs, acwDegs, hingeReferenceAxis);
+	}
+
+    pub fn setBaseboneConstraintUV(&mut self, constraintUV: Vector3<f32>)
+	{
+		if self.mBaseboneConstraintType == BaseboneConstraintType::NONE
+		{
+			panic!("Specify the basebone constraint type with setBaseboneConstraintTypeCannot specify a basebone constraint when the current constraint type is BaseboneConstraint.NONE.");
+		}
+		
+		// Validate the constraint direction unit vector
+		util::validateDirectionUV(constraintUV);
+		
+		// All good? Then normalise the constraint direction and set it
+		constraintUV.normalize();
+		self.mBaseboneConstraintUV = constraintUV;
+	}
+
+    pub fn setBaseLocation(&mut self, baseLocation: Vector3<f32>) 
+    { self.mFixedBaseLocation = baseLocation; }
+
+    pub fn setFixedBaseMode(&mut self, value: bool)
+	{	
+		// Enforce that a chain connected to another chain stays in fixed base mode (i.e. it moves with the chain it's connected to instead of independently)
+		if !value && self.mConnectedChainNumber != None
+		{
+			panic!("This chain is connected to another chain so must remain in fixed base mode.");
+		}
+		
+		// We cannot have a freely moving base location AND constrain the basebone to an absolute direction
+		if self.mBaseboneConstraintType == BaseboneConstraintType::GLOBAL_ROTOR && !value
+		{
+			panic!("Cannot set a non-fixed base mode when the chain's constraint type is BaseboneConstraintType3D.GLOBAL_ABSOLUTE_ROTOR.");
+		}
+		
+		// Above conditions met? Set the fixedBaseMode
+		self.mFixedBaseMode = value;
+	}
+
+    pub fn setMaxIterationAttempts(&mut self, maxIterations: usize)
+	{
+		// Ensure we have a valid maximum number of iteration attempts
+		if maxIterations < 1
+		{
+			panic!("The maximum number of attempts to solve this IK chain must be at least 1.");
+		}
+		
+		// All good? Set the new maximum iteration attempts property
+		self.mMaxIterationAttempts = maxIterations;
+	}
+
+    pub fn setMinIterationChange(&mut self, minIterationChange: f32)
+	{
+		// Ensure we have a valid maximum number of iteration attempts
+		if self.mMinIterationChange < 0.0
+		{
+			panic!("The minimum iteration change value must be more than or equal to zero.");
+		}
+		
+		// All good? Set the new minimum iteration change distance
+		self.mMinIterationChange = minIterationChange;
+	}
+
+    pub fn setSolveDistanceThreshold(&mut self, solveDistance: f32)
+	{
+		// Ensure we have a valid solve distance
+		if solveDistance < 0.0
+		{
+			panic!("The solve distance threshold must be greater than or equal to zero.");
+		}
+		
+		// All good? Set the new solve distance threshold
+		self.mSolveDistanceThreshold = solveDistance;
+	}
+}
+
+//getters
+impl Chain{
+	pub fn getMaxIterationAttempts(&self) -> usize {
+		return self.mMaxIterationAttempts;
+	}
+	
+	pub fn getMinIterationChange(&self) -> f32 {
+		return self.mMinIterationChange;
+	}
+	
+	pub fn getSolveDistanceThreshold(&self) -> f32 {
+		return self.mSolveDistanceThreshold;
+	}
+
+    pub fn getBaseboneRelativeConstraintUV(&self) -> Vector3<f32>
+    { return self.mBaseboneRelativeConstraintUV; }
+
+    pub fn getBaseboneConstraintType(&self) -> BaseboneConstraintType
+    { return self.mBaseboneConstraintType; }
+
+    pub fn getBaseboneConstraintUV(&self) -> Vector3<f32>
+	{
+		if  self.mBaseboneConstraintType != BaseboneConstraintType::NONE 
+		{
+			return self.mBaseboneConstraintUV;
+		}
+		else
+		{
+			panic!("Cannot return the basebone constraint when the basebone constraint type is NONE.");
+		}
+	}
+
+    pub fn getBaseLocation(&self) -> Vector3<f32> 
+    { return self.mChain[0].getStartLocation(); }	
+
+    pub fn getBone(&mut self, boneNumber: usize) -> &mut Bone
+    { return &mut self.mChain[boneNumber]; }
+
+    pub fn getChain(&self) -> &Vec<Bone>
+    { return &self.mChain; }
+
+    pub fn getChainLength(&self) -> f32
+    { return self.mChainLength; }
+
+    pub fn getConnectedBoneNumber(&self) -> usize
+    { return self.mConnectedBoneNumber.unwrap(); }
+
+    pub fn getConnectedChainNumber(&self) -> usize 
+    { return self.mConnectedChainNumber.unwrap(); }
+
+    pub fn getEffectorLocation(&self) -> Vector3<f32> 
+    { return self.mChain[self.mChain.len()-1].getEndLocation(); }
+
+    pub fn getEmbeddedTargetMode(&self) -> bool
+    { return self.mUseEmbeddedTarget; }
+
+    pub fn getEmbeddedTarget(&self) -> Vector3<f32>  
+    { return self.mEmbeddedTarget; }
+
+    pub fn getLastTargetLocation(&self) -> Vector3<f32>   
+    { return self.mLastTargetLocation; }
+
+    pub fn getLiveChainLength(&self) -> f32
+	{
+		let mut length: f32 = 0.0;		
+		for bone in self.mChain.iter()
+		{  
+			length += bone.liveLength();
+		}		
+		return length;
+	}	
+
+    pub fn getNumBones(&self) -> usize 
+    { return self.mChain.len(); }
+
+    pub fn getBaseboneRelativeReferenceConstraintUV(&self) -> Vector3<f32> 
+    { return self.mBaseboneRelativeReferenceConstraintUV;}
+
+    
+	
 }
 
 impl Chain{

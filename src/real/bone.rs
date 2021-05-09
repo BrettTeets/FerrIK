@@ -1,6 +1,7 @@
 use super::{joint::Joint, joint, util};
 use cgmath::{Vector3, MetricSpace, Rad};
 
+#[derive(Clone, PartialEq, Debug)]
 pub struct Bone{
     mBoneConnectionPoint: crate::BoneConnectionPoint,
 	mJoint: Joint,

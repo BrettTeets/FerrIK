@@ -167,3 +167,55 @@ pub fn distanceBetween(v1: Vector3<f32>, v2: Vector3<f32>) -> f32
 		let dz = v2.z - v1.z;
 		return (dx * dx + dy * dy + dz * dz).sqrt();
 	}
+
+    pub fn perpendicular(a: Vector3<f32>, b: Vector3<f32>) -> bool
+	{
+		if approximatelyEquals( a.dot(b), 0.0, 0.01 )
+        {
+            return true;
+        }
+        else{
+            return false;
+        }
+	}
+
+    pub fn genPerpendicularVectorQuick(u: Vector3<f32>) -> Vector3<f32>
+	{
+		let perp: Vector3<f32>;
+		
+		if (u.y).abs() < 0.99
+		{
+			perp = Vector3::new(-u.z, 0.0, u.x); // cross(u, UP)
+		}
+		else
+		{
+			perp = Vector3::new(0.0, u.z, -u.y); // cross(u, RIGHT)
+		}
+		
+		return perp.normalize();
+	}
+
+    pub fn validateDirectionUV(directionUV: Vector3<f32>)
+	{
+		// Ensure that the magnitude of this direction unit vector is greater than zero
+		if  directionUV.magnitude() <= 0.0
+		{
+			panic!("Vec3f direction unit vector cannot be zero.");
+		}
+	}
+
+    pub fn v_approximatelyEquals(v1: Vector3<f32>, v2: Vector3<f32>, tolerance: f32) -> bool
+	{	
+		if tolerance < 0.0
+		{
+			panic!("Equality threshold must be greater than or equal to 0.0f");
+		}
+		
+		// Get the absolute differences between the components
+		let xDiff = (v1.x - v2.x).abs();
+		let yDiff = (v1.y - v2.y).abs();
+		let zDiff = (v1.z - v2.z).abs();
+		
+		// Return true or false
+		return xDiff < tolerance && yDiff < tolerance && zDiff < tolerance;
+	}
