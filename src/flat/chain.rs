@@ -10,9 +10,6 @@ pub enum BaseboneConstraintType
     LOCAL_ABSOLUTE 
 }
 
-#[derive(Clone, Copy, PartialEq)]
-pub enum BoneConnectionPoint { START, END }
-
 pub struct Chain{
     mChain: Vec<Bone>,
     mSolveDistanceThreshold: f32,
@@ -22,7 +19,7 @@ pub struct Chain{
     mBaseLocation: Vector2<f32>,
     mFixedBaseMode: bool,
     mBaseboneConstraintType: BaseboneConstraintType,
-    mBoneConnectionPoint: BoneConnectionPoint,
+    mBoneConnectionPoint: crate::BoneConnectionPoint,
     mBaseboneConstraintUV: Vector2<f32>,
     mBaseboneRelativeConstraintUV: Vector2<f32>,
     mLastTargetLocation: Vector2<f32>,
@@ -45,7 +42,7 @@ impl Chain{
             mBaseLocation: Vector2::new(0.0, 0.0),
             mFixedBaseMode: true,
             mBaseboneConstraintType: BaseboneConstraintType::NONE,
-            mBoneConnectionPoint: BoneConnectionPoint::END,
+            mBoneConnectionPoint: crate::BoneConnectionPoint::END,
             mBaseboneConstraintUV: Vector2::new(0.0, 0.0),
             mBaseboneRelativeConstraintUV: Vector2::new(0.0, 0.0),
             mLastTargetLocation: Vector2::new(f32::MAX, f32::MAX),
@@ -277,7 +274,7 @@ impl Chain{
         self.mBaseLocation = baseLocation; 
     }
 
-    pub fn setBoneConnectionPoint(&mut self, boneConnectionPoint: BoneConnectionPoint) 
+    pub fn setBoneConnectionPoint(&mut self, boneConnectionPoint: crate::BoneConnectionPoint) 
     { 
         self.mBoneConnectionPoint = boneConnectionPoint; 
     }
@@ -409,7 +406,7 @@ impl Chain{
 		return self.mChain[boneNumber];
 	}
 
-    pub fn getBoneConnectionPoint(&self) -> BoneConnectionPoint
+    pub fn getBoneConnectionPoint(&self) -> crate::BoneConnectionPoint
     { 
         return self.mBoneConnectionPoint; 
     }

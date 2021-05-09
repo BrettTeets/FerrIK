@@ -13,6 +13,9 @@ pub mod util;
 pub mod flat;
 pub mod real;
 
+#[derive(Clone, Copy, PartialEq)]
+pub enum BoneConnectionPoint { START, END }
+
 #[cfg(test)]
 mod tests {
     #[test]
