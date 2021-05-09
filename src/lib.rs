@@ -11,6 +11,7 @@ pub mod structure;
 
 pub mod util;
 pub mod flat;
+pub mod real;
 
 #[cfg(test)]
 mod tests {

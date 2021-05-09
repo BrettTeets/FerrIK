@@ -430,9 +430,9 @@ impl Chain{
         return self.mConnectedBoneNumber.expect("There is no connected Bone."); 
     }
 
-    pub fn getConnectedChainNumber(&self) -> usize
+    pub fn getConnectedChainNumber(&self) -> Option<usize>
     { 
-        return self.mConnectedChainNumber.expect("There is no connected Chain."); 
+        return self.mConnectedChainNumber; 
     }
 
     pub fn getEffectorLocation(&self) -> Vector2<f32>
