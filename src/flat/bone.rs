@@ -1,7 +1,7 @@
 use super::{joint, joint::Joint};
 use cgmath::{Vector2, MetricSpace, Rad, InnerSpace};
 
-#[derive(Clone, Copy)]
+#[derive(Clone, PartialEq, Debug)]
 pub struct Bone{
     mJoint: Joint,
     mStartLocation: Vector2<f32>,
@@ -56,8 +56,8 @@ impl Bone{
     pub fn getEndLocation(&self) -> Vector2<f32>
     { return self.mEndLocation; }
 
-    pub fn getJoint(&self) -> Joint
-    { return self.mJoint; }
+    pub fn getJoint(&self) -> &Joint
+    { return &self.mJoint; }
 
     pub fn getClockwiseConstraintDegs(&self) -> Rad<f32>
     { return self.mJoint.getClockwiseConstraintDegs(); }
