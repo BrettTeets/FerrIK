@@ -486,7 +486,7 @@ impl Chain{
         for loope in (0..self.mChain.len()).rev()
 		{
 			// Get this bone
-			let mut thisBone: Bone = self.mChain[loope];
+			let mut thisBone: &Bone = &self.mChain[loope];
 			
 			// Get the length of the bone we're working on
 			let  boneLength: f32 = thisBone.length();			
@@ -494,7 +494,7 @@ impl Chain{
 			// If we are not working on the end effector bone
 			if loope != self.mChain.len() - 1
 			{
-				let outerBone: Bone = self.mChain[loope+1];
+				let outerBone: &Bone = &self.mChain[loope+1];
 				
 				// Get the outer-to-inner unit vector of this bone and the bone further out
 				let outerBoneOuterToInnerUV: Vector2<f32> = -outerBone.getDirectionUV(); //negated.
