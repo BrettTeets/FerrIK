@@ -1,4 +1,4 @@
-use super::{bone::Bone, joint::Joint, joint::JointType, joint, util};
+use super::{bone::Bone, joint::Joint, joint::JointType, structure::Structure, joint, util};
 use cgmath::{Vector3, Rad, InnerSpace, Matrix3};
 
 #[derive(Clone, Copy, PartialEq)]
@@ -80,6 +80,34 @@ impl Chain{
 		
 		// Increment the number of bones in the chain and update the chain length
 		
+	}
+
+    pub fn addConsecutiveBone(&mut self, mut bone: Bone)
+	{
+		// Validate the direction unit vector - throws an IllegalArgumentException if it has a magnitude of zero
+		let dir: Vector3<f32> = bone.getDirectionUV();
+		util::validateDirectionUV(dir);
+		
+		// Validate the length of the bone - throws an IllegalArgumentException if it is not a positive value
+		let len: f32 = bone.liveLength();
+		util::validateLength(len);
+			
+		// If we have at least one bone already in the chain...
+		if !self.mChain.is_empty()
+		{		
+			// Get the end location of the last bone, which will be used as the start location of the new bone
+			let prevBoneEnd: Vector3<f32> = self.mChain[self.mChain.len()-1].getEndLocation();
+						
+			bone.setStartLocation(prevBoneEnd);
+			bone.setEndLocation( prevBoneEnd + ( dir * (len)) );
+					
+			// Add a bone to the end of this IK chain
+			self.addBone(bone);
+		}
+		else // Attempting to add a relative bone when there is no base bone for it to be relative to?
+		{
+			panic!("You cannot add the base bone to a chain using this method as it does not provide a start location.");
+		}		
 	}
 
     pub fn removeBone(&mut self, boneNumber: usize)
@@ -215,6 +243,26 @@ impl Chain{
 		}
 		
 		return clonedChain;
+	}
+
+    pub fn connectToStructure(&mut self, structure: Structure, chainNumber:usize,  boneNumber: usize)
+	{
+		// Sanity check chain exists
+        //TODO, Why not ask the strucutre to validate this rather than validating it yourslef here?
+		let numChains: usize = structure.getNumChains();
+		if chainNumber > numChains { 
+		  panic!("Structure does not contain a chain {} - it has {} chains.", chainNumber, numChains); 
+		}
+		
+		// Sanity check bone exists
+		let numBones: usize = structure.getChain(chainNumber).getNumBones();
+		if boneNumber > numBones { 
+		  panic!("Chain does not contain a bone {} - it has {} bones.", boneNumber,  numBones); 
+		}
+		
+		// All good? Set the connection details
+		self.mConnectedChainNumber = Some(chainNumber);
+		self.mConnectedBoneNumber  = Some(boneNumber);		
 	}
 }
 
@@ -432,11 +480,11 @@ impl Chain{
     pub fn getChainLength(&self) -> f32
     { return self.mChainLength; }
 
-    pub fn getConnectedBoneNumber(&self) -> usize
-    { return self.mConnectedBoneNumber.unwrap(); }
+    pub fn getConnectedBoneNumber(&self) -> Option<usize>
+    { return self.mConnectedBoneNumber; }
 
-    pub fn getConnectedChainNumber(&self) -> usize 
-    { return self.mConnectedChainNumber.unwrap(); }
+    pub fn getConnectedChainNumber(&self) -> Option<usize> 
+    { return self.mConnectedChainNumber; }
 
     pub fn getEffectorLocation(&self) -> Vector3<f32> 
     { return self.mChain[self.mChain.len()-1].getEndLocation(); }

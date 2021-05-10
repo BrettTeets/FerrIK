@@ -219,3 +219,12 @@ pub fn distanceBetween(v1: Vector3<f32>, v2: Vector3<f32>) -> f32
 		// Return true or false
 		return xDiff < tolerance && yDiff < tolerance && zDiff < tolerance;
 	}
+
+    pub fn validateLength(length: f32)
+	{
+		// Ensure that the magnitude of this direction unit vector is not zero
+		if length < 0.0
+		{
+			panic!("Length must be a greater than or equal to zero.");
+		}
+	}
