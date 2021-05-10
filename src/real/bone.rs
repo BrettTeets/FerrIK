@@ -38,6 +38,17 @@ impl Bone{
     pub fn liveLength(&self) -> f32
     { return self.mStartLocation.distance(self.mEndLocation);	}
 
+    ///Returns a vector showing the length and direction of the bone, with it's base center
+    /// at 0,0 for easy repositioning along the chain. add consecutive bones uses it.
+    pub fn get_vector_to_end(&self) -> Vector3<f32>{
+        let len = self.mStartLocation.distance(self.mEndLocation);
+        let dir = self.getDirectionUV();
+        util::validateDirectionUV(dir);
+        util::validateLength(len);
+
+        return dir * len;
+    }
+
     pub fn setBoneConnectionPoint(&mut self, bcp: crate::BoneConnectionPoint) 
     { self.mBoneConnectionPoint = bcp; }
 

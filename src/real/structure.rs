@@ -114,7 +114,7 @@ impl Structure{
 			// If this chain isn't connected to another chain then update as normal...
 			if connectedChainNumber == None
 			{	
-				self.mChains[index].solveForTarget(newTargetLocation);
+				self.mChains[index].solve_for_target(newTargetLocation);
 			}
 			else // ...however, if this chain IS connected to another chain...
 			{	
@@ -144,11 +144,12 @@ impl Structure{
 				{
 					// None or global basebone constraints? Nothing to do, because these will be handled in FabrikChain3D.solveIK() as we do not
 					// need information from another chain to handle them.
-					chain::BaseboneConstraintType::NONE => (),         // Nothing to do because there's no basebone constraint
-					chain::BaseboneConstraintType::GLOBAL_ROTOR => (), // Nothing to do because the basebone constraint is not relative to bones in other chains in this structure
-					chain::BaseboneConstraintType::GLOBAL_HINGE => (), // Nothing to do because the basebone constraint is not relative to bones in other chains in this structure	
+					chain::BaseboneConstraintType::None => (),         // Nothing to do because there's no basebone constraint
+					chain::BaseboneConstraintType::GlobalRotor => (), // Nothing to do because the basebone constraint is not relative to bones in other chains in this structure
+					chain::BaseboneConstraintType::GlobalHinge => (), // Nothing to do because the basebone constraint is not relative to bones in other chains in this structure	
 					// If we have a local rotor or hinge constraint then we must calculate the relative basebone constraint before calling updateTarget
-					chain::BaseboneConstraintType::LOCAL_ROTOR => {
+					chain::BaseboneConstraintType::LocalRotor => {
+                        //TODO: turn these two into a one function.
 						// Get the direction of the bone this chain is connected to and create a rotation matrix from it.
 						let connectionBoneMatrix: Matrix3<f32> = util::createRotationMatrix( self.mChains[host_id].getBone(connect_id).getDirectionUV() );
 						
@@ -157,16 +158,16 @@ impl Structure{
 						let relativeBaseboneConstraintUV: Vector3<f32> = connectionBoneMatrix * (self.mChains[index].getBaseboneConstraintUV() ).normalize();
 							
 						// Update our basebone relative constraint UV property
-						self.mChains[index].setBaseboneRelativeConstraintUV(relativeBaseboneConstraintUV);
+						self.mChains[index].set_basebone_relative_constraint_uv(relativeBaseboneConstraintUV);
 						
 						// Updat the relative reference constraint UV if we hav a local hinge
-						if constraintType == chain::BaseboneConstraintType::LOCAL_HINGE
+						if constraintType == chain::BaseboneConstraintType::LocalHinge
 						{
                             let referenceAxis = self.mChains[index].getBone(0).getJoint().getHingeReferenceAxis();
-							self.mChains[index].setBaseboneRelativeReferenceConstraintUV( connectionBoneMatrix * ( referenceAxis ) );
+							self.mChains[index].set_basebone_relative_reference_constraint_uv( connectionBoneMatrix * ( referenceAxis ) );
 						}
 					},
-					chain::BaseboneConstraintType::LOCAL_HINGE => {
+					chain::BaseboneConstraintType::LocalHinge => {
 						// Get the direction of the bone this chain is connected to and create a rotation matrix from it.
 						let connectionBoneMatrix: Matrix3<f32> = util::createRotationMatrix( self.mChains[host_id].getBone(connect_id).getDirectionUV() );
 						
@@ -175,13 +176,13 @@ impl Structure{
 						let relativeBaseboneConstraintUV: Vector3<f32> = connectionBoneMatrix * (self.mChains[index].getBaseboneConstraintUV() ).normalize();
 							
 						// Update our basebone relative constraint UV property
-						self.mChains[index].setBaseboneRelativeConstraintUV(relativeBaseboneConstraintUV);
+						self.mChains[index].set_basebone_relative_constraint_uv(relativeBaseboneConstraintUV);
 						
 						// Updat the relative reference constraint UV if we hav a local hinge
-						if constraintType == chain::BaseboneConstraintType::LOCAL_HINGE
+						if constraintType == chain::BaseboneConstraintType::LocalHinge
 						{
                             let refferenceAxis = self.mChains[index].getBone(0).getJoint().getHingeReferenceAxis();
-							self.mChains[index].setBaseboneRelativeReferenceConstraintUV( connectionBoneMatrix * ( refferenceAxis ) );
+							self.mChains[index].set_basebone_relative_reference_constraint_uv( connectionBoneMatrix * ( refferenceAxis ) );
 						}
 					},
 					
@@ -194,11 +195,11 @@ impl Structure{
 				// Update the target and solve the chain
 				if  !self.mChains[index].getEmbeddedTargetMode() 
 				{
-					self.mChains[index].solveForTarget(newTargetLocation);	
+					self.mChains[index].solve_for_target(newTargetLocation);	
 				}
 				else
 				{
-					self.mChains[index].solveForEmbeddedTarget();
+					self.mChains[index].solve_for_embedded_target();
 				}
 				
 			} // End of if chain is connected to another chain section
