@@ -106,7 +106,7 @@ impl Chain{
 	{	
 		// If we have both the same target and base location as the last run then do not solve
 		if  util::v_approximatelyEquals(self.last_target_location, new_target, 0.001) &&
-			 util::v_approximatelyEquals(self.last_base_location, self.getBaseLocation(), 0.001) 
+			 util::v_approximatelyEquals(self.last_base_location, self.get_base_location(), 0.001) 
 		{
 			return self.current_solve_distance;
 		}
@@ -126,7 +126,7 @@ impl Chain{
 		{	
 			// Solve the chain for this target, rember this is going to modify the actual bones stored
 			// in this data structure. Is this really the best way to do this?
-			solve_distance = self.solveIK(new_target);
+			solve_distance = self.solve_ik(new_target);
 			
 			// Did we solve it for distance? If so, update our best distance and best solution, and also
 			// update our last pass solve distance. Note: We will ALWAYS beat our last solve distance on the first run. 
@@ -156,7 +156,7 @@ impl Chain{
 		self.bones = best_solution;
 		
 		// Update our base and target locations
-		self.last_base_location = self.getBaseLocation();
+		self.last_base_location = self.get_base_location();
 		self.last_target_location = new_target;
 		
 		return self.current_solve_distance;
@@ -212,7 +212,7 @@ impl Chain{
 		}
 		
 		// Sanity check bone exists
-		let numBones: usize = structure.getChain(chainNumber).getNumBones();
+		let numBones: usize = structure.getChain(chainNumber).get_num_bones();
 		if boneNumber > numBones { 
 		  panic!("Chain does not contain a bone {} - it has {} bones.", boneNumber,  numBones); 
 		}
@@ -221,6 +221,16 @@ impl Chain{
 		self.connected_chain_number = Some(chainNumber);
 		self.connected_bone_number  = Some(boneNumber);		
 	}
+}
+
+//Absolutely my favorite thing to override.
+use std::ops::Index;
+impl Index<usize> for Chain {
+    type Output = Bone;
+
+    fn index(&self, i: usize) -> &Self::Output {
+        &self.bones[i]
+    }
 }
 
 //setters
@@ -249,67 +259,68 @@ impl Chain{
 		self.basebone_constraint_type = rotor_type;
 		self.basebone_constraint_uv   = constraint_axis.normalize();
 		self.basebone_relative_constraint_uv = self.basebone_constraint_uv;
-		self.getBone(0).getJoint().setAsBallJoint(angle);
+		self.get_bone(0).getJoint().setAsBallJoint(angle);
 	}
     
-    pub fn setHingeBaseboneConstraint(&mut self,  hingeType: BaseboneConstraintType,
-        hingeRotationAxis: Vector3<f32>, cwConstraintDegs: Rad<f32>, acwConstraintDegs: Rad<f32>, hingeReferenceAxis: Vector3<f32>)
+    pub fn set_hinge_basebone_constraint(&mut self,  hinge_type: BaseboneConstraintType,
+        hinge_rotation_axis: Vector3<f32>, cw_constraint_rads: Rad<f32>, acw_constraint_rads: Rad<f32>, hinge_reference_axis: Vector3<f32>)
 	{
 		// Sanity checking
 		if self.bones.is_empty()	{ 
 		  panic!("Chain must contain a basebone before we can specify the basebone constraint type."); 
 		}		
-		if  hingeRotationAxis.magnitude() <= 0.0   { 
+		if  hinge_rotation_axis.magnitude() <= 0.0   { 
 		  panic!("Hinge rotation axis cannot be zero.");
 		}
-		if hingeReferenceAxis.magnitude() <= 0.0  { 
+		if hinge_reference_axis.magnitude() <= 0.0  { 
 		  panic!("Hinge reference axis cannot be zero.");	
 		}
-		if  !( util::perpendicular(hingeRotationAxis, hingeReferenceAxis) )  {
+		if  !( util::perpendicular(hinge_rotation_axis, hinge_reference_axis) )  {
 			panic!("The hinge reference axis must be in the plane of the hinge rotation axis, that is, they must be perpendicular.");
 		}
-		if  !(hingeType == BaseboneConstraintType::GlobalHinge || hingeType == BaseboneConstraintType::LocalHinge)  {	
+		if  !(hinge_type == BaseboneConstraintType::GlobalHinge || hinge_type == BaseboneConstraintType::LocalHinge)  {	
 			panic!("The only valid hinge types for this method are GLOBAL_HINGE and LOCAL_HINGE.");
 		}
 		
 		// Set the constraint type, axis and angle
-		self.basebone_constraint_type = hingeType;
-		self.basebone_constraint_uv = hingeRotationAxis.normalize();
+		self.basebone_constraint_type = hinge_type;
+		self.basebone_constraint_uv = hinge_rotation_axis.normalize();
 		
 		let mut hinge: Joint = Joint::new();
 		
-		if hingeType == BaseboneConstraintType::GlobalHinge
+		if hinge_type == BaseboneConstraintType::GlobalHinge
 		{
-			hinge.setHinge(JointType::GLOBAL_HINGE, hingeRotationAxis, cwConstraintDegs, acwConstraintDegs, hingeReferenceAxis);
+			hinge.setHinge(JointType::GLOBAL_HINGE, hinge_rotation_axis, cw_constraint_rads, acw_constraint_rads, hinge_reference_axis);
 		}
 		else
 		{
-			hinge.setHinge(JointType::LOCAL_HINGE, hingeRotationAxis, cwConstraintDegs, acwConstraintDegs, hingeReferenceAxis);
+			hinge.setHinge(JointType::LOCAL_HINGE, hinge_rotation_axis, cw_constraint_rads, acw_constraint_rads, hinge_reference_axis);
 		}
-		self.getBone(0).setJoint(hinge);
+		//TODO: Can this be cleaned up it is probably a common operation.
+		self.get_bone(0).setJoint(hinge);
 	}
 
-    pub fn setFreelyRotatingGlobalHingedBasebone(&mut self, hingeRotationAxis: Vector3<f32>)
+    pub fn set_freely_rotating_global_hinged_basebone(&mut self, hinge_rotation_axis: Vector3<f32>)
 	{
-		self.setHingeBaseboneConstraint(BaseboneConstraintType::GlobalHinge, hingeRotationAxis, Rad(3.1415), Rad(3.1415), util::genPerpendicularVectorQuick(hingeRotationAxis) );
+		self.set_hinge_basebone_constraint(BaseboneConstraintType::GlobalHinge, hinge_rotation_axis, Rad(3.1415), Rad(3.1415), util::genPerpendicularVectorQuick(hinge_rotation_axis) );
 	}
 
-    pub fn setFreelyRotatingLocalHingedBasebone(&mut self, hingeRotationAxis: Vector3<f32>)
+    pub fn set_freely_rotating_local_hinged_basebone(&mut self, hinge_rotation_axis: Vector3<f32>)
 	{
-		self.setHingeBaseboneConstraint(BaseboneConstraintType::LocalHinge, hingeRotationAxis, Rad(3.1415), Rad(3.1415), util::genPerpendicularVectorQuick(hingeRotationAxis) );
+		self.set_hinge_basebone_constraint(BaseboneConstraintType::LocalHinge, hinge_rotation_axis, Rad(3.1415), Rad(3.1415), util::genPerpendicularVectorQuick(hinge_rotation_axis) );
 	}
 
-    pub fn setLocalHingedBasebone(&mut self, hingeRotationAxis: Vector3<f32>, cwDegs: Rad<f32>, acwDegs: Rad<f32>, hingeReferenceAxis: Vector3<f32>)
+    pub fn set_local_hinged_basebone(&mut self, hinge_rotation_axis: Vector3<f32>, cw_rads: Rad<f32>, acw_rads: Rad<f32>, hinge_reference_axis: Vector3<f32>)
 	{
-		self.setHingeBaseboneConstraint(BaseboneConstraintType::LocalHinge, hingeRotationAxis, cwDegs, acwDegs, hingeReferenceAxis);
+		self.set_hinge_basebone_constraint(BaseboneConstraintType::LocalHinge, hinge_rotation_axis, cw_rads, acw_rads, hinge_reference_axis);
 	}
 
-    pub fn setGlobalHingedBasebone(&mut self, hingeRotationAxis: Vector3<f32>, cwDegs: Rad<f32>, acwDegs: Rad<f32>, hingeReferenceAxis: Vector3<f32>)
+    pub fn set_global_hinged_basebone(&mut self, hinge_rotation_axis: Vector3<f32>, cw_rads: Rad<f32>, acw_rads: Rad<f32>, hinge_reference_axis: Vector3<f32>)
 	{
-		self.setHingeBaseboneConstraint(BaseboneConstraintType::GlobalHinge, hingeRotationAxis, cwDegs, acwDegs, hingeReferenceAxis);
+		self.set_hinge_basebone_constraint(BaseboneConstraintType::GlobalHinge, hinge_rotation_axis, cw_rads, acw_rads, hinge_reference_axis);
 	}
 
-    pub fn setBaseboneConstraintUV(&mut self, constraintUV: Vector3<f32>)
+    pub fn set_basebone_constraint_uv(&mut self, constraint_uv: Vector3<f32>)
 	{
 		if self.basebone_constraint_type == BaseboneConstraintType::None
 		{
@@ -317,17 +328,17 @@ impl Chain{
 		}
 		
 		// Validate the constraint direction unit vector
-		util::validateDirectionUV(constraintUV);
+		util::validateDirectionUV(constraint_uv);
 		
 		// All good? Then normalise the constraint direction and set it
-		constraintUV.normalize();
-		self.basebone_constraint_uv = constraintUV;
+		constraint_uv.normalize();
+		self.basebone_constraint_uv = constraint_uv;
 	}
 
-    pub fn setBaseLocation(&mut self, baseLocation: Vector3<f32>) 
-    { self.fixed_base_location = baseLocation; }
+    pub fn set_base_location(&mut self, base_location: Vector3<f32>) 
+    { self.fixed_base_location = base_location; }
 
-    pub fn setFixedBaseMode(&mut self, value: bool)
+    pub fn set_fixed_base_mode(&mut self, value: bool)
 	{	
 		// Enforce that a chain connected to another chain stays in fixed base mode (i.e. it moves with the chain it's connected to instead of independently)
 		if !value && self.connected_chain_number != None
@@ -345,19 +356,19 @@ impl Chain{
 		self.fixed_base_mode = value;
 	}
 
-    pub fn setMaxIterationAttempts(&mut self, maxIterations: usize)
+    pub fn set_max_iteration_attempts(&mut self, max_iterations: usize)
 	{
 		// Ensure we have a valid maximum number of iteration attempts
-		if maxIterations < 1
+		if max_iterations < 1
 		{
 			panic!("The maximum number of attempts to solve this IK chain must be at least 1.");
 		}
 		
 		// All good? Set the new maximum iteration attempts property
-		self.max_iteration_attempts = maxIterations;
+		self.max_iteration_attempts = max_iterations;
 	}
 
-    pub fn setMinIterationChange(&mut self, minIterationChange: f32)
+    pub fn set_min_iteration_change(&mut self, min_iteration_change: f32)
 	{
 		// Ensure we have a valid maximum number of iteration attempts
 		if self.min_iteration_change < 0.0
@@ -366,85 +377,82 @@ impl Chain{
 		}
 		
 		// All good? Set the new minimum iteration change distance
-		self.min_iteration_change = minIterationChange;
+		self.min_iteration_change = min_iteration_change;
 	}
 
-    pub fn setSolveDistanceThreshold(&mut self, solveDistance: f32)
+    pub fn set_solve_distance_threshold(&mut self, solve_distance: f32)
 	{
 		// Ensure we have a valid solve distance
-		if solveDistance < 0.0
+		if solve_distance < 0.0
 		{
 			panic!("The solve distance threshold must be greater than or equal to zero.");
 		}
 		
 		// All good? Set the new solve distance threshold
-		self.solve_distance_threshold = solveDistance;
+		self.solve_distance_threshold = solve_distance;
 	}
 }
 
 //getters
 impl Chain{
-	pub fn getMaxIterationAttempts(&self) -> usize {
+	pub fn get_max_iteration_attempts(&self) -> usize {
 		return self.max_iteration_attempts;
 	}
 	
-	pub fn getMinIterationChange(&self) -> f32 {
+	pub fn get_min_iteration_change(&self) -> f32 {
 		return self.min_iteration_change;
 	}
 	
-	pub fn getSolveDistanceThreshold(&self) -> f32 {
+	pub fn get_solve_distance_threshold(&self) -> f32 {
 		return self.solve_distance_threshold;
 	}
 
-    pub fn getBaseboneRelativeConstraintUV(&self) -> Vector3<f32>
+    pub fn get_basebone_relative_constraint_uv(&self) -> Vector3<f32>
     { return self.basebone_relative_constraint_uv; }
 
-    pub fn getBaseboneConstraintType(&self) -> BaseboneConstraintType
+    pub fn get_basebone_constraint_type(&self) -> BaseboneConstraintType
     { return self.basebone_constraint_type; }
 
-    pub fn getBaseboneConstraintUV(&self) -> Vector3<f32>
+    pub fn get_basebone_constraint_uv(&self) -> Vector3<f32>
 	{
-		if  self.basebone_constraint_type != BaseboneConstraintType::None 
-		{
-			return self.basebone_constraint_uv;
-		}
-		else
-		{
+		if self.basebone_constraint_type == BaseboneConstraintType::None{
 			panic!("Cannot return the basebone constraint when the basebone constraint type is None.");
 		}
+
+		return self.basebone_constraint_uv;	
 	}
 
-    pub fn getBaseLocation(&self) -> Vector3<f32> 
+    pub fn get_base_location(&self) -> Vector3<f32> 
     { return self.bones[0].getStartLocation(); }	
 
-    pub fn getBone(&mut self, boneNumber: usize) -> &mut Bone
-    { return &mut self.bones[boneNumber]; }
+    pub fn get_bone(&mut self, bone_number: usize) -> &mut Bone
+    { return &mut self.bones[bone_number]; }
 
-    pub fn getChain(&self) -> &Vec<Bone>
+    pub fn get_chain(&self) -> &Vec<Bone>
     { return &self.bones; }
 
-    pub fn getChainLength(&self) -> f32
+    pub fn get_chain_length(&self) -> f32
     { return self.chain_length; }
 
-    pub fn getConnectedBoneNumber(&self) -> Option<usize>
+    pub fn get_connected_bone_number(&self) -> Option<usize>
     { return self.connected_bone_number; }
 
-    pub fn getConnectedChainNumber(&self) -> Option<usize> 
+    pub fn get_connected_chain_number(&self) -> Option<usize> 
     { return self.connected_chain_number; }
 
-    pub fn getEffectorLocation(&self) -> Vector3<f32> 
+    pub fn get_effector_location(&self) -> Vector3<f32> 
     { return self.bones[self.bones.len()-1].getEndLocation(); }
 
-    pub fn getEmbeddedTargetMode(&self) -> bool
+    pub fn get_embedded_target_mode(&self) -> bool
     { return self.use_embedded_target; }
 
-    pub fn getEmbeddedTarget(&self) -> Vector3<f32>  
+    pub fn get_embedded_target(&self) -> Vector3<f32>  
     { return self.embedded_target; }
 
-    pub fn getLastTargetLocation(&self) -> Vector3<f32>   
+    pub fn get_last_target_location(&self) -> Vector3<f32>   
     { return self.last_target_location; }
 
-    pub fn getLiveChainLength(&self) -> f32
+    pub fn get_live_chain_length(&self) -> f32
 	{
 		let mut length: f32 = 0.0;		
 		for bone in self.bones.iter()
@@ -454,10 +462,10 @@ impl Chain{
 		return length;
 	}	
 
-    pub fn getNumBones(&self) -> usize 
+    pub fn get_num_bones(&self) -> usize 
     { return self.bones.len(); }
 
-    pub fn getBaseboneRelativeReferenceConstraintUV(&self) -> Vector3<f32> 
+    pub fn get_basebone_relative_reference_constraint_uv(&self) -> Vector3<f32> 
     { return self.basebone_relative_reference_constraint_uv;}
 
     
@@ -465,7 +473,7 @@ impl Chain{
 }
 
 impl Chain{
-    pub fn solveIK(&mut self, target: Vector3<f32>) -> f32
+    pub fn solve_ik(&mut self, target: Vector3<f32>) -> f32
 	{	
 		// Sanity check that there are bones in the chain
 		if self.bones.is_empty() { 
@@ -481,7 +489,7 @@ impl Chain{
 			// Get the length of the bone we're working on
             
             let chain_length = self.bones.len();
-            let thisBoneDirectionUV: Vector3<f32> = self.bones[index].getDirectionUV();
+            let this_bone_direction_uv: Vector3<f32> = self.bones[index].getDirectionUV();
             let thisBoneLength: f32  = self.bones[index].length();
 			let thisBoneJoint: Joint = self.bones[index].getJoint(); //odd, this one asked to be a reference.
 			let thisBoneJointType: JointType = self.bones[index].getJointType();
@@ -495,7 +503,7 @@ impl Chain{
 				let outerBoneOuterToInnerUV: Vector3<f32> = -self.bones[index+1].getDirectionUV();
 
 				// Get the outer-to-inner unit vector of this bone
-				let mut thisBoneOuterToInnerUV: Vector3<f32> = -thisBoneDirectionUV;
+				let mut thisBoneOuterToInnerUV: Vector3<f32> = -this_bone_direction_uv;
 				
 				// Get the joint type for this bone and handle constraints on thisBoneInnerToOuterUV				
 				if thisBoneJointType == JointType::BALL
