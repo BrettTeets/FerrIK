@@ -501,44 +501,18 @@ impl Chain{
 				// Get the joint type for this bone and handle constraints on thisBoneInnerToOuterUV				
 				if self[this].getJointType() == JointType::BALL
 				{	
-					// Constrain to relative angle between this bone and the outer bone if required
-					let angleBetweenDegs: Rad<f32>    = util::getAngleBetweenDegs(outerBoneOuterToInnerUV, this_bone_outer_to_inner_uv);
-					let constraintAngleDegs: Rad<f32> = self[this].getJoint().getBallJointConstraintDegs();
-					if angleBetweenDegs > constraintAngleDegs
-					{	
-						this_bone_outer_to_inner_uv = util::getAngleLimitedUnitVectorDegs(this_bone_outer_to_inner_uv, outerBoneOuterToInnerUV, constraintAngleDegs);
-					}
+					this_bone_outer_to_inner_uv = 
+						self.calc_forward_ball_joint_constraint(this, outerBoneOuterToInnerUV, this_bone_outer_to_inner_uv);
 				}
 				else if self[this].getJointType() == JointType::GLOBAL_HINGE
 				{	
-					// Project this bone outer-to-inner direction onto the hinge rotation axis
-					// Note: The returned vector is normalised.
-					this_bone_outer_to_inner_uv = util::projectOntoPlane(this_bone_outer_to_inner_uv, self[this].getJoint().getHingeRotationAxis() ); 
-					
-					// NOTE: Constraining about the hinge reference axis on this forward pass leads to poor solutions... so we won't.
+					this_bone_outer_to_inner_uv =
+						self.calc_forward_global_joint_constraint(this, this_bone_outer_to_inner_uv);
 				}
 				else if self[this].getJointType() == JointType::LOCAL_HINGE
 				{	
-					// Not a basebone? Then construct a rotation matrix based on the previous bones inner-to-to-inner direction...
-					let m: Matrix3<f32>;
-					let relativeHingeRotationAxis: Vector3<f32>;
-					if this > 0 {
-						m = util::createRotationMatrix( self.bones[this-1].getDirectionUV() );
-						relativeHingeRotationAxis = m * ( self[this].getJoint().getHingeRotationAxis() ).normalize();
-					}
-					else // ...basebone? Need to construct matrix from the relative constraint UV.
-					{
-						relativeHingeRotationAxis = self.basebone_relative_constraint_uv;
-					}
-					
-					// ...and transform the hinge rotation axis into the previous bones frame of reference.
-					//Vec3f 
-										
-					// Project this bone's outer-to-inner direction onto the plane described by the relative hinge rotation axis
-					// Note: The returned vector is normalised.					
-					this_bone_outer_to_inner_uv = util::projectOntoPlane(this_bone_outer_to_inner_uv, relativeHingeRotationAxis);
-										
-					// NOTE: Constraining about the hinge reference axis on this forward pass leads to poor solutions... so we won't.										
+					this_bone_outer_to_inner_uv = 
+						self.calc_forward_local_joint_constraint(this, this_bone_outer_to_inner_uv)
 				}
 					
 				// At this stage we have a outer-to-inner unit vector for this bone which is within our constraints,
@@ -548,15 +522,7 @@ impl Chain{
 					self.bones[this].getEndLocation() + ( this_bone_outer_to_inner_uv * (self[this].length()) );
 
 				// Set the new start joint location for this bone
-				self.bones[this].setStartLocation(newStartLocation);
-
-				// If we are not working on the basebone, then we also set the end joint location of
-				// the previous bone in the chain (i.e. the bone closer to the base) to be the new
-				// start joint location of this bone.
-				if this > 0
-				{
-					self.bones[this-1].setEndLocation(newStartLocation);
-				}
+				self.set_forward_pass_position(this, newStartLocation);
 			}
 			else // If we ARE working on the end effector bone...
 			{
@@ -578,17 +544,9 @@ impl Chain{
 						thisBoneOuterToInnerUV = util::projectOntoPlane(thisBoneOuterToInnerUV, self[this].getJoint().getHingeRotationAxis() );
                         },
                     JointType::LOCAL_HINGE => {
-						// Local hinges get constrained to the hinge rotation axis, but not the reference axis within the hinge plane
-						
-						// Construct a rotation matrix based on the previous bones inner-to-to-inner direction...
-						let m: Matrix3<f32> = util::createRotationMatrix( self.bones[this-1].getDirectionUV() );
-						
-						// ...and transform the hinge rotation axis into the previous bones frame of reference.
-						let relativeHingeRotationAxis: Vector3<f32> = m * ( self[this].getJoint().getHingeRotationAxis() ).normalize();
-											
-						// Project this bone's outer-to-inner direction onto the plane described by the relative hinge rotation axis
-						// Note: The returned vector is normalised.					
-						thisBoneOuterToInnerUV = util::projectOntoPlane(thisBoneOuterToInnerUV, relativeHingeRotationAxis);
+									
+						thisBoneOuterToInnerUV = 
+							self.calc_forward_local_hinge(this, thisBoneOuterToInnerUV);
                         },
 				}
 												
@@ -597,14 +555,7 @@ impl Chain{
 				let newStartLocation: Vector3<f32> = target + ( thisBoneOuterToInnerUV * (self[this].length()) );
 				
 				// Set the new start joint location for this bone to be new start location...
-				self.bones[this].setStartLocation(newStartLocation);
-
-				// ...and set the end joint location of the bone further in to also be at the new start location (if there IS a bone
-				// further in - this may be a single bone chain)
-				if this > 0
-				{
-					self.bones[this-1].setEndLocation(newStartLocation);
-				}
+				self.set_forward_pass_position(this, newStartLocation);
 			}
 			
 		} // End of forward pass
@@ -917,5 +868,78 @@ impl Chain{
 		
 		// Finally, calculate and return the distance between the current effector location and the target.
 		return util::distanceBetween(self.bones[self.bones.len()-1].getEndLocation(), target);
+	}
+
+	pub fn calc_forward_ball_joint_constraint(&self, this: usize, outerBoneOuterToInnerUV: Vector3<f32>, 
+		this_bone_outer_to_inner_uv: Vector3<f32>) -> Vector3<f32>{
+		// Constrain to relative angle between this bone and the outer bone if required
+		let angleBetweenDegs: Rad<f32>    = util::getAngleBetweenDegs(outerBoneOuterToInnerUV, this_bone_outer_to_inner_uv);
+		let constraintAngleDegs: Rad<f32> = self[this].getJoint().getBallJointConstraintDegs();
+		if angleBetweenDegs > constraintAngleDegs
+		{	
+			return util::getAngleLimitedUnitVectorDegs(this_bone_outer_to_inner_uv, outerBoneOuterToInnerUV, constraintAngleDegs);
+		}
+		return this_bone_outer_to_inner_uv;
+	}
+
+	pub fn calc_forward_global_joint_constraint(&self, this: usize,
+		 this_bone_outer_to_inner_uv: Vector3<f32>) -> Vector3<f32>{
+		// Project this bone outer-to-inner direction onto the hinge rotation axis
+		// Note: The returned vector is normalised.
+		return util::projectOntoPlane(this_bone_outer_to_inner_uv, self[this].getJoint().getHingeRotationAxis() ); 
+		
+		// NOTE: Constraining about the hinge reference axis on this forward pass leads to poor solutions... so we won't.
+	}
+
+	pub fn calc_forward_local_joint_constraint(&self, this: usize,
+		 this_bone_outer_to_inner_uv: Vector3<f32>) -> Vector3<f32> 
+	{
+		// Not a basebone? Then construct a rotation matrix based on the previous bones inner-to-to-inner direction...
+		let m: Matrix3<f32>;
+		let relativeHingeRotationAxis: Vector3<f32>;
+		if this > 0 {
+			m = util::createRotationMatrix( self.bones[this-1].getDirectionUV() );
+			relativeHingeRotationAxis = m * ( self[this].getJoint().getHingeRotationAxis() ).normalize();
+		}
+		else // ...basebone? Need to construct matrix from the relative constraint UV.
+		{
+			relativeHingeRotationAxis = self.basebone_relative_constraint_uv;
+		}
+		
+		// ...and transform the hinge rotation axis into the previous bones frame of reference.
+		//Vec3f 
+							
+		// Project this bone's outer-to-inner direction onto the plane described by the relative hinge rotation axis
+		// Note: The returned vector is normalised.					
+		return util::projectOntoPlane(this_bone_outer_to_inner_uv, relativeHingeRotationAxis);
+							
+		// NOTE: Constraining about the hinge reference axis on this forward pass leads to poor solutions... so we won't.										
+	}
+
+	pub fn set_forward_pass_position(&mut self, this: usize, newStartLocation: Vector3<f32>){
+		// Set the new start joint location for this bone
+		self.bones[this].setStartLocation(newStartLocation);
+
+		// If we are not working on the basebone, then we also set the end joint location of
+		// the previous bone in the chain (i.e. the bone closer to the base) to be the new
+		// start joint location of this bone.
+		if this > 0
+		{
+			self.bones[this-1].setEndLocation(newStartLocation);
+		}
+	}
+
+	pub fn calc_forward_local_hinge(&self, this: usize, thisBoneOuterToInnerUV: Vector3<f32>) -> Vector3<f32>{
+		// Local hinges get constrained to the hinge rotation axis, but not the reference axis within the hinge plane
+						
+		// Construct a rotation matrix based on the previous bones inner-to-to-inner direction...
+		let m: Matrix3<f32> = util::createRotationMatrix( self.bones[this-1].getDirectionUV() );
+		
+		// ...and transform the hinge rotation axis into the previous bones frame of reference.
+		let relativeHingeRotationAxis: Vector3<f32> = m * ( self[this].getJoint().getHingeRotationAxis() ).normalize();
+							
+		// Project this bone's outer-to-inner direction onto the plane described by the relative hinge rotation axis
+		// Note: The returned vector is normalised.					
+		return util::projectOntoPlane(thisBoneOuterToInnerUV, relativeHingeRotationAxis);
 	}
 } //line 943
