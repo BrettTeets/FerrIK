@@ -1,5 +1,5 @@
-use super::{bone::Bone, joint::Joint, joint::JointType, structure::Structure, joint, util, solver};
-use cgmath::{Vector3, Rad, InnerSpace, Matrix3};
+use super::{bone::Bone, joint::Joint, joint::JointType, structure::Structure, util, solver};
+use cgmath::{Vector3, Rad, InnerSpace};
 
 #[derive(Clone, Copy, PartialEq)]
 pub enum BaseboneConstraintType
@@ -480,6 +480,7 @@ impl Chain{
 	
 }
 
+//used by solver to query the chain in a readable way.
 impl Chain{
 
 	pub fn forward_pass_index_iter(&self) -> std::iter::Rev<std::ops::Range<usize>>{
