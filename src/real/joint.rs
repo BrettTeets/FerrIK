@@ -7,94 +7,94 @@ pub const MAX_CONSTRAINT_ANGLE_DEGS: Rad<f32> = Rad(3.14159); //This should be 1
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub enum JointType
 {
-    BALL,
-    GLOBAL_HINGE,
-    LOCAL_HINGE
+    Ball,
+    GlobalHinge,
+    LocalHinge
 }
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub struct Joint{
-    mRotorConstraintDegs: Rad<f32>,
-    mHingeClockwiseConstraintDegs: Rad<f32>,
-    mHingeAnticlockwiseConstraintDegs: Rad<f32>,
-	mRotationAxisUV: Vector3<f32>,
-	mReferenceAxisUV: Vector3<f32>,
-    mJointType: JointType, 
+    rotor_constraint: Rad<f32>,
+    hinge_clockwise_constraint: Rad<f32>,
+    hinge_anticlockwise_constraint: Rad<f32>,
+	rotation_axis: Vector3<f32>,
+	reference_axis: Vector3<f32>,
+    joint_type: JointType, 
 }
 
 impl Joint{
     pub fn new() -> Self{
         Self{
-            mRotorConstraintDegs: MAX_CONSTRAINT_ANGLE_DEGS,
-            mHingeClockwiseConstraintDegs: MAX_CONSTRAINT_ANGLE_DEGS,  
-            mHingeAnticlockwiseConstraintDegs:  MAX_CONSTRAINT_ANGLE_DEGS,    
-            mRotationAxisUV:  Vector3::new(0.0, 0.0, 0.0),    
-            mReferenceAxisUV:  Vector3::new(0.0, 0.0, 0.0),
-            mJointType: JointType::BALL,
+            rotor_constraint: MAX_CONSTRAINT_ANGLE_DEGS,
+            hinge_clockwise_constraint: MAX_CONSTRAINT_ANGLE_DEGS,  
+            hinge_anticlockwise_constraint:  MAX_CONSTRAINT_ANGLE_DEGS,    
+            rotation_axis:  Vector3::new(0.0, 0.0, 0.0),    
+            reference_axis:  Vector3::new(0.0, 0.0, 0.0),
+            joint_type: JointType::Ball,
         }
     }
 
     pub fn set(&mut self, source: Joint)
 	{
-            self.mRotorConstraintDegs = source.mRotorConstraintDegs;
-            self.mHingeClockwiseConstraintDegs =  source.mHingeClockwiseConstraintDegs; 
-            self.mHingeAnticlockwiseConstraintDegs = source.mHingeAnticlockwiseConstraintDegs;    
-            self.mRotationAxisUV =  source.mRotationAxisUV;    
-            self.mReferenceAxisUV =  source.mReferenceAxisUV;
-            self.mJointType = source.mJointType;
+            self.rotor_constraint = source.rotor_constraint;
+            self.hinge_clockwise_constraint =  source.hinge_clockwise_constraint; 
+            self.hinge_anticlockwise_constraint = source.hinge_anticlockwise_constraint;    
+            self.rotation_axis =  source.rotation_axis;    
+            self.reference_axis =  source.reference_axis;
+            self.joint_type = source.joint_type;
 	}
 
-    pub fn setAsBallJoint(&mut self, constraintAngleDegs: Rad<f32>)
+    pub fn set_as_ball_joint(&mut self, constraint_angle: Rad<f32>)
 	{
 		// Throw a RuntimeException if the rotor constraint angle is outside the range 0 to 180 degrees
-		Joint::validateConstraintAngleDegs(constraintAngleDegs);
+		Joint::validate_constraint_angle_degs(constraint_angle);
 				
 		// Set the rotor constraint angle and the joint type to be BALL.
-		self.mRotorConstraintDegs = constraintAngleDegs;		
-		self.mJointType = JointType::BALL;
+		self.rotor_constraint = constraint_angle;		
+		self.joint_type = JointType::Ball;
 	}
 
-    pub fn setHinge(&mut self, jointType: JointType , rotationAxis: Vector3<f32>, 
-        clockwiseConstraintDegs: Rad<f32>, anticlockwiseConstraintDegs: Rad<f32>, referenceAxis: Vector3<f32>)
+    pub fn set_hinge(&mut self, joint_type: JointType , rotation_axis: Vector3<f32>, 
+        clockwise_constraint_degs: Rad<f32>, anticlockwise_constraint: Rad<f32>, reference_axis: Vector3<f32>)
 	{
 		// Ensure the reference axis falls within the plane of the rotation axis (i.e. they are perpendicular, so their dot product is zero)		
-		if  !util::approximatelyEquals( rotationAxis.dot(referenceAxis), 0.0, 0.01) 
+		if  !util::approximatelyEquals( rotation_axis.dot(reference_axis), 0.0, 0.01) 
 		{
 			//float angleDegs = Vec3f.getAngleBetweenDegs(rotationAxis, referenceAxis);
 			panic!("The reference axis must be in the plane of the hinge rotation axis - angle between them is currently: " /*+ angleDegs*/);
 		}
 		
 		// Validate the constraint angles to be within the valid range and the axis isn't zero
-		Joint::validateConstraintAngleDegs(clockwiseConstraintDegs);
-		Joint::validateConstraintAngleDegs(anticlockwiseConstraintDegs);
-		Joint::validateAxis(rotationAxis);
-		Joint::validateAxis(referenceAxis);
+		Joint::validate_constraint_angle_degs(clockwise_constraint_degs);
+		Joint::validate_constraint_angle_degs(anticlockwise_constraint);
+		Joint::validate_axis(rotation_axis);
+		Joint::validate_axis(reference_axis);
 		
 		// Set params
-		self.mHingeClockwiseConstraintDegs     = clockwiseConstraintDegs;
-		self.mHingeAnticlockwiseConstraintDegs = anticlockwiseConstraintDegs;
-		self.mJointType                        = jointType;
-		self.mRotationAxisUV = rotationAxis.normalize();
-		self.mReferenceAxisUV = referenceAxis.normalize();
+		self.hinge_clockwise_constraint     = clockwise_constraint_degs;
+		self.hinge_anticlockwise_constraint = anticlockwise_constraint;
+		self.joint_type                        = joint_type;
+		self.rotation_axis = rotation_axis.normalize();
+		self.reference_axis = reference_axis.normalize();
 	}
 
-    pub fn setAsGlobalHinge(&mut self, globalRotationAxis: Vector3<f32>, 
-        cwConstraintDegs: Rad<f32>, acwConstraintDegs: Rad<f32>, globalReferenceAxis: Vector3<f32>)
+    pub fn set_as_global_hinge(&mut self, global_rotation_axis: Vector3<f32>, 
+        cw_constraint: Rad<f32>, acw_constraint: Rad<f32>, global_reference_axis: Vector3<f32>)
 	{
-		self.setHinge(JointType::GLOBAL_HINGE, globalRotationAxis, cwConstraintDegs, acwConstraintDegs, globalReferenceAxis);
+		self.set_hinge(JointType::GlobalHinge, global_rotation_axis, cw_constraint, acw_constraint, global_reference_axis);
 	}
 
-    pub fn setAsLocalHinge(&mut self, localRotationAxis: Vector3<f32>, 
-        cwConstraintDegs: Rad<f32>, acwConstraintDegs: Rad<f32>, localReferenceAxis: Vector3<f32>)
+    pub fn set_as_local_hinge(&mut self, local_rotation_axis: Vector3<f32>, 
+        cw_constraint: Rad<f32>, acw_constraint: Rad<f32>, local_reference_axis: Vector3<f32>)
 	{
-		self.setHinge(JointType::LOCAL_HINGE, localRotationAxis, cwConstraintDegs, acwConstraintDegs, localReferenceAxis);
+		self.set_hinge(JointType::LocalHinge, local_rotation_axis, cw_constraint, acw_constraint, local_reference_axis);
 	}
 
-    pub fn getHingeClockwiseConstraintDegs(&self) -> Rad<f32>
+    pub fn get_hinge_clockwise_constraint_degs(&self) -> Rad<f32>
 	{
-		if  self.mJointType != JointType::BALL 
+		if  self.joint_type != JointType::Ball 
 		{
-			return self.mHingeClockwiseConstraintDegs;
+			return self.hinge_clockwise_constraint;
 		}
 		else
 		{
@@ -102,11 +102,11 @@ impl Joint{
 		}		
 	}
 
-    pub fn getHingeAnticlockwiseConstraintDegs(&self) -> Rad<f32>
+    pub fn get_hinge_anticlockwise_constraint_degs(&self) -> Rad<f32>
 	{
-		if  self.mJointType != JointType::BALL 
+		if  self.joint_type != JointType::Ball 
 		{
-			return self.mHingeAnticlockwiseConstraintDegs;
+			return self.hinge_anticlockwise_constraint;
 		}
 		else
 		{
@@ -114,26 +114,26 @@ impl Joint{
 		}
 	}
 
-    pub fn setBallJointConstraintDegs(&mut self, angleDegs: Rad<f32>)
+    pub fn set_ball_joint_constraint_degs(&mut self, angle: Rad<f32>)
 	{
-		Joint::validateConstraintAngleDegs(angleDegs);
+		Joint::validate_constraint_angle_degs(angle);
 		
-		if self.mJointType == JointType::BALL
+		if self.joint_type == JointType::Ball
 		{
-			self.mRotorConstraintDegs = angleDegs;
+			self.rotor_constraint = angle;
 		}
 		else
 		{
-			panic!("This joint is of type: {:?} - only joints of type JointType.BALL have a ball joint constraint angle.", self.mJointType);
+			panic!("This joint is of type: {:?} - only joints of type JointType.BALL have a ball joint constraint angle.", self.joint_type);
              
         }
 	}
 
-    pub fn getBallJointConstraintDegs(&self) -> Rad<f32>
+    pub fn get_ball_joint_constraint(&self) -> Rad<f32>
 	{
-		if self.mJointType == JointType::BALL
+		if self.joint_type == JointType::Ball
 		{
-			return self.mRotorConstraintDegs;
+			return self.rotor_constraint;
 		}
 		else
 		{
@@ -141,13 +141,13 @@ impl Joint{
 		}
 	}
 
-    pub fn setHingeJointClockwiseConstraintDegs(&mut self, angleDegs: Rad<f32>) 
+    pub fn set_hinge_joint_clockwise_constraint(&mut self, angle: Rad<f32>) 
 	{
-		Joint::validateConstraintAngleDegs(angleDegs);
+		Joint::validate_constraint_angle_degs(angle);
 		
-		if self.mJointType != JointType::BALL 
+		if self.joint_type != JointType::Ball 
 		{
-			self.mHingeClockwiseConstraintDegs = angleDegs;
+			self.hinge_clockwise_constraint = angle;
 		}
 		else
 		{
@@ -155,13 +155,13 @@ impl Joint{
 		}
 	}
 
-    pub fn setHingeJointAnticlockwiseConstraintDegs(&mut self, angleDegs: Rad<f32>)
+    pub fn set_hinge_joint_anticlockwise_constraint(&mut self, angle: Rad<f32>)
 	{
-		Joint::validateConstraintAngleDegs(angleDegs);
+		Joint::validate_constraint_angle_degs(angle);
 		
-		if self.mJointType != JointType::BALL 
+		if self.joint_type != JointType::Ball 
 		{
-			self.mHingeAnticlockwiseConstraintDegs = angleDegs;
+			self.hinge_anticlockwise_constraint = angle;
 		}
 		else
 		{
@@ -169,13 +169,13 @@ impl Joint{
 		}
 	}
 
-    pub fn  setHingeRotationAxis(&mut self, axis: Vector3<f32>)
+    pub fn  set_hinge_rotation_axis(&mut self, axis: Vector3<f32>)
 	{
-		Joint::validateAxis(axis);
+		Joint::validate_axis(axis);
 		
-		if self.mJointType != JointType::BALL 
+		if self.joint_type != JointType::Ball 
 		{
-			self.mRotationAxisUV = axis.normalize();
+			self.rotation_axis = axis.normalize();
 		}
 		else
 		{
@@ -183,11 +183,11 @@ impl Joint{
 		}
 	}
 
-    pub fn getHingeReferenceAxis(&self) -> Vector3<f32>
+    pub fn get_hinge_reference_axis(&self) -> Vector3<f32>
 	{	
-		if self.mJointType != JointType::BALL
+		if self.joint_type != JointType::Ball
 		{
-			return self.mReferenceAxisUV;
+			return self.reference_axis;
 		}
 		else
 		{
@@ -195,13 +195,13 @@ impl Joint{
 		}
 	}
 
-   pub fn setHingeReferenceAxis(&mut self, referenceAxis: Vector3<f32>)
+   pub fn set_hinge_reference_axis(&mut self, reference_axis: Vector3<f32>)
 	{
-        Joint::validateAxis(referenceAxis);
+        Joint::validate_axis(reference_axis);
 		
-		if self.mJointType != JointType::BALL 
+		if self.joint_type != JointType::Ball 
 		{
-			self.mReferenceAxisUV = referenceAxis.normalize();
+			self.reference_axis = reference_axis.normalize();
 		}
 		else
 		{
@@ -209,11 +209,11 @@ impl Joint{
 		}
 	}
 
-    pub fn getHingeRotationAxis(&self) -> Vector3<f32>
+    pub fn get_hinge_rotation_axis(&self) -> Vector3<f32>
 	{	
-		if self.mJointType != JointType::BALL
+		if self.joint_type != JointType::Ball
 		{
-			return self.mRotationAxisUV;
+			return self.rotation_axis;
 		}
 		else
 		{
@@ -221,21 +221,21 @@ impl Joint{
 		}
 	}
 
-    pub fn getJointType(&self) -> JointType
+    pub fn get_joint_type(&self) -> JointType
     { 
-        return self.mJointType; 
+        return self.joint_type; 
     }
 
-    pub fn validateConstraintAngleDegs(angleDegs: Rad<f32>)
+    pub fn validate_constraint_angle_degs(angle: Rad<f32>)
 	{
-		if angleDegs < MIN_CONSTRAINT_ANGLE_DEGS || angleDegs > MAX_CONSTRAINT_ANGLE_DEGS
+		if angle < MIN_CONSTRAINT_ANGLE_DEGS || angle > MAX_CONSTRAINT_ANGLE_DEGS
 		{
 			panic!("Constraint angles must be within the range {:?} to {:?} inclusive.", MIN_CONSTRAINT_ANGLE_DEGS, MAX_CONSTRAINT_ANGLE_DEGS); 
             
 		}
 	}
 	
-	pub fn validateAxis(axis: Vector3<f32>)
+	pub fn validate_axis(axis: Vector3<f32>)
 	{
 		if axis.magnitude() <= 0.0
 		{

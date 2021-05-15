@@ -62,19 +62,19 @@ impl Bone{
     { self.joint.set(joint); }
 
     pub fn get_joint_type(&self)	-> joint::JointType
-    { return self.joint.getJointType(); }
+    { return self.joint.get_joint_type(); }
 
     pub fn set_hinge_joint_clockwise_constraint_degs(&mut self, angle: Rad<f32>) 
-    {	self.joint.setHingeJointClockwiseConstraintDegs(angle);	}
+    {	self.joint.set_hinge_joint_clockwise_constraint(angle);	}
 
     pub fn get_hinge_joint_clockwise_constraint_degs(&self)	->Rad<f32>
-    { return self.joint.getHingeClockwiseConstraintDegs(); }
+    { return self.joint.get_hinge_clockwise_constraint_degs(); }
 	
     pub fn set_hinge_joint_anticlockwise_constraint_degs(&mut self, angle: Rad<f32>) 
-    { self.joint.setHingeJointAnticlockwiseConstraintDegs(angle); }
+    { self.joint.set_hinge_joint_anticlockwise_constraint(angle); }
 	
     pub fn get_hinge_joint_anticlockwise_constraint_degs(&self)->Rad<f32>
-    { return self.joint.getHingeAnticlockwiseConstraintDegs(); }
+    { return self.joint.get_hinge_anticlockwise_constraint_degs(); }
 
     pub fn set_ball_constraint(&mut self, angle: Rad<f32>)
 	{	
@@ -83,11 +83,11 @@ impl Bone{
 			panic!("Rotor constraints for ball joints must be in the range 0.0f to 180.0f degrees inclusive.");
 		}
 		
-		self.joint.setBallJointConstraintDegs(angle);
+		self.joint.set_ball_joint_constraint_degs(angle);
 	}
 
     pub fn get_ball_constraint(&self) -> Rad<f32>
-    { return self.joint.getBallJointConstraintDegs();	}
+    { return self.joint.get_ball_joint_constraint();	}
 
     pub fn get_direction(&self) -> Vector3<f32>
 	{

@@ -54,18 +54,18 @@ pub fn backward_pass(chain: &mut Chain){
 // outer-to-inner direction unit vector multiplied by the length of the bone.
 pub fn non_end_bone_calc(chain: &Chain, index: usize, )-> Vector3<f32>{
     return chain.bones[index].end_location + (match chain[index].get_joint_type(){
-        JointType::BALL => calc_ball_joint_constraint(chain, index, -chain[index].get_direction(), -chain[index+1].get_direction()),
-        JointType::GLOBAL_HINGE => calc_forward_global_joint_constraint(chain, index, -chain[index].get_direction()),
-        JointType::LOCAL_HINGE => calc_forward_local_joint_constraint(chain, index, -chain[index].get_direction()),
+        JointType::Ball => calc_ball_joint_constraint(chain, index, -chain[index].get_direction(), -chain[index+1].get_direction()),
+        JointType::GlobalHinge => calc_forward_global_joint_constraint(chain, index, -chain[index].get_direction()),
+        JointType::LocalHinge => calc_forward_local_joint_constraint(chain, index, -chain[index].get_direction()),
     } * (chain[index].length()) );
 }
 
 pub fn end_bone_calc(chain: &Chain, index: usize, target: Vector3<f32>) -> Vector3<f32>{
     return target + match chain[index].get_joint_type(){
-        JointType::BALL =>  -chain[index].get_direction(),				
-        JointType::GLOBAL_HINGE => // Global hinges get constrained to the hinge rotation axis, but not the reference axis within the hinge plane
+        JointType::Ball =>  -chain[index].get_direction(),				
+        JointType::GlobalHinge => // Global hinges get constrained to the hinge rotation axis, but not the reference axis within the hinge plane
             calc_end_effector_global_hinge(chain, index),
-        JointType::LOCAL_HINGE => 
+        JointType::LocalHinge => 
             calc_forward_effector_local_hinge(chain, index, -chain[index].get_direction()),
     } * (chain[index].length());
 }
@@ -73,11 +73,11 @@ pub fn end_bone_calc(chain: &Chain, index: usize, target: Vector3<f32>) -> Vecto
 pub fn non_basebone_calc(chain: &Chain, index: usize) -> Vector3<f32>{
     return chain[index].get_start_location() +
         match chain[index].get_joint_type() {
-        JointType::BALL => 
+        JointType::Ball => 
             calc_ball_joint_constraint(chain, index, chain[index].get_direction(), chain[index-1].get_direction()),
-        JointType::GLOBAL_HINGE => 
+        JointType::GlobalHinge => 
             calc_backwards_global_joint(chain, index, chain[index].get_direction()),
-        JointType::LOCAL_HINGE => 
+        JointType::LocalHinge => 
             calc_backwards_local_joint(chain, index,  chain[index].get_direction(), chain[index-1].get_direction()),
     } * chain[index].length();
 }
@@ -148,7 +148,7 @@ pub fn set_backwards_basebone(chain: &mut Chain, index: usize, new_end_location:
 pub fn calc_ball_joint_constraint(chain: &Chain, this: usize, this_bone_uv: Vector3<f32>, 
     other_bone_uv: Vector3<f32>) -> Vector3<f32>{
     let angle_between: Rad<f32>    = util::getAngleBetweenDegs(other_bone_uv, this_bone_uv);
-    let constraint_angle: Rad<f32> = chain[this].joint.getBallJointConstraintDegs();
+    let constraint_angle: Rad<f32> = chain[this].get_ball_constraint();
     return constrain_rotor(this_bone_uv, other_bone_uv, angle_between, constraint_angle)
 }
 
@@ -156,7 +156,7 @@ pub fn calc_forward_global_joint_constraint(chain: &Chain, index: usize,
     this_bone_outer_to_inner_uv: Vector3<f32>) -> Vector3<f32>{
     // Project this bone outer-to-inner direction onto the hinge rotation axis
     // Note: The returned vector is normalised.
-    return util::projectOntoPlane(this_bone_outer_to_inner_uv, chain[index].joint.getHingeRotationAxis() ); 
+    return util::projectOntoPlane(this_bone_outer_to_inner_uv, chain[index].joint.get_hinge_rotation_axis() ); 
     
     // NOTE: Constraining about the hinge reference axis on this forward pass leads to poor solutions... so we won't.
 }
@@ -164,16 +164,16 @@ pub fn calc_forward_global_joint_constraint(chain: &Chain, index: usize,
 pub fn calc_backwards_global_joint(chain: &Chain, index: usize, 
     mut inner_to_outer_uv: Vector3<f32>) -> Vector3<f32>{
     // Get the hinge rotation axis and project our inner-to-outer UV onto it
-    let rotation_axis =  chain[index].joint.getHingeRotationAxis();
+    let rotation_axis =  chain[index].joint.get_hinge_rotation_axis();
     inner_to_outer_uv = util::projectOntoPlane(inner_to_outer_uv, rotation_axis);
     
     // If there are joint constraints, then we must honour them...
-    let cw_constraint = -chain[index].joint.getHingeClockwiseConstraintDegs();
-    let acw_constraint =  chain[index].joint.getHingeAnticlockwiseConstraintDegs();
+    let cw_constraint = -chain[index].joint.get_hinge_clockwise_constraint_degs();
+    let acw_constraint =  chain[index].joint.get_hinge_anticlockwise_constraint_degs();
     if  !( util::approximatelyEquals(cw_constraint.0, -joint::MAX_CONSTRAINT_ANGLE_DEGS.0, 0.001) ) &&
                 !( util::approximatelyEquals(acw_constraint.0, joint::MAX_CONSTRAINT_ANGLE_DEGS.0, 0.001) ) 
     {
-        let reference_axis =  chain[index].joint.getHingeReferenceAxis();
+        let reference_axis =  chain[index].joint.get_hinge_reference_axis();
 
         inner_to_outer_uv = constrain_hinge(inner_to_outer_uv, reference_axis, rotation_axis, cw_constraint, acw_constraint);
     }
@@ -183,7 +183,7 @@ pub fn calc_backwards_global_joint(chain: &Chain, index: usize,
 pub fn calc_backwards_local_joint(chain: &Chain, index: usize, mut inner_to_outer_uv: Vector3<f32>,
     prev_inner_to_outer_uv: Vector3<f32>) -> Vector3<f32>{
     // Transform the hinge rotation axis to be relative to the previous bone in the chain
-    let rotation_axis = chain[index].joint.getHingeRotationAxis();
+    let rotation_axis = chain[index].joint.get_hinge_rotation_axis();
                 
     // Construct a rotation matrix based on the previous bone's direction
     let m = util::createRotationMatrix(prev_inner_to_outer_uv);
@@ -197,12 +197,12 @@ pub fn calc_backwards_local_joint(chain: &Chain, index: usize, mut inner_to_oute
     inner_to_outer_uv = util::projectOntoPlane(inner_to_outer_uv, rotation_axis);
     
     // Constrain rotation about reference axis if required
-    let cw_constraint  = -chain[index].joint.getHingeClockwiseConstraintDegs();
-    let acw_constraint =  chain[index].joint.getHingeAnticlockwiseConstraintDegs();
+    let cw_constraint  = -chain[index].joint.get_hinge_clockwise_constraint_degs();
+    let acw_constraint =  chain[index].joint.get_hinge_anticlockwise_constraint_degs();
     if  !( util::approximatelyEquals(cw_constraint.0, -joint::MAX_CONSTRAINT_ANGLE_DEGS.0, 0.001) ) &&
                 !( util::approximatelyEquals(acw_constraint.0, joint::MAX_CONSTRAINT_ANGLE_DEGS.0, 0.001) ) 
     {
-        let reference_axis: Vector3<f32> = m * ( chain[index].joint.getHingeReferenceAxis() ).normalize();
+        let reference_axis: Vector3<f32> = m * ( chain[index].joint.get_hinge_reference_axis() ).normalize();
 
         inner_to_outer_uv = constrain_hinge(inner_to_outer_uv, reference_axis, rotation_axis, cw_constraint, acw_constraint);
     }
@@ -217,7 +217,7 @@ pub fn calc_forward_local_joint_constraint(chain: &Chain, index: usize,
     let rotation_axis: Vector3<f32>;
     if index > 0 {
         m = util::createRotationMatrix( chain[index-1].get_direction() );
-        rotation_axis = m * ( chain[index].joint.getHingeRotationAxis() ).normalize();
+        rotation_axis = m * ( chain[index].joint.get_hinge_rotation_axis() ).normalize();
     }
     else // ...basebone? Need to construct matrix from the relative constraint UV.
     {
@@ -235,7 +235,7 @@ pub fn calc_forward_effector_local_hinge(chain: &Chain, this: usize, outer_to_in
     let m: Matrix3<f32> = util::createRotationMatrix( chain[this-1].get_direction() );
     
     // relative hinge rotation axis.
-    let rotation_axis: Vector3<f32> = m * ( chain[this].joint.getHingeRotationAxis() ).normalize();
+    let rotation_axis: Vector3<f32> = m * ( chain[this].joint.get_hinge_rotation_axis() ).normalize();
                         
     // Project this bone's outer-to-inner direction onto the plane described by the relative hinge rotation axis
     // Note: The returned vector is normalised.					
@@ -243,7 +243,7 @@ pub fn calc_forward_effector_local_hinge(chain: &Chain, this: usize, outer_to_in
 }
 
 pub fn calc_end_effector_global_hinge(chain: &Chain, index: usize) -> Vector3<f32>{
-    return util::projectOntoPlane(-chain[index].get_direction(), chain[index].joint.getHingeRotationAxis())
+    return util::projectOntoPlane(-chain[index].get_direction(), chain[index].joint.get_hinge_rotation_axis())
 }
 
 fn calc_backwards_basebone_global_rotor(chain: &Chain, index: usize) -> Vector3<f32>{
@@ -273,9 +273,9 @@ fn constrain_rotor(inner_to_outer_uv: Vector3<f32>, constraint_uv: Vector3<f32>,
 
 fn calc_backwards_basebone_global_hinge(chain: &Chain, index: usize) -> Vector3<f32>{
     let joint: Joint  =  chain[index].joint;
-    let rotation_axis: Vector3<f32>  =  joint.getHingeRotationAxis();
-    let cw_constraint: Rad<f32>   = -joint.getHingeClockwiseConstraintDegs();     // Clockwise rotation is negative!
-    let acw_constraint: Rad<f32>  =  joint.getHingeAnticlockwiseConstraintDegs();
+    let rotation_axis: Vector3<f32>  =  joint.get_hinge_rotation_axis();
+    let cw_constraint: Rad<f32>   = -joint.get_hinge_clockwise_constraint_degs();     // Clockwise rotation is negative!
+    let acw_constraint: Rad<f32>  =  joint.get_hinge_anticlockwise_constraint_degs();
     
     // Get the inner-to-outer direction of this bone and project it onto the global hinge rotation axis
     let mut inner_to_outer_uv: Vector3<f32> = util::projectOntoPlane(chain[index].get_direction(), rotation_axis);
@@ -285,7 +285,7 @@ fn calc_backwards_basebone_global_hinge(chain: &Chain, index: usize) -> Vector3<
             util::approximatelyEquals(acw_constraint.0,  joint::MAX_CONSTRAINT_ANGLE_DEGS.0, 0.01) ) 
     {        
         inner_to_outer_uv = 
-            constrain_hinge(inner_to_outer_uv, joint.getHingeReferenceAxis(), rotation_axis, cw_constraint, acw_constraint)
+            constrain_hinge(inner_to_outer_uv, joint.get_hinge_reference_axis(), rotation_axis, cw_constraint, acw_constraint)
     }
     return inner_to_outer_uv;
 }
@@ -293,8 +293,8 @@ fn calc_backwards_basebone_global_hinge(chain: &Chain, index: usize) -> Vector3<
 fn calc_backwards_basebone_local_hinge(chain: &Chain, index: usize) -> Vector3<f32> {
     let joint: Joint  =  chain[index].joint;
     let rotation_axis: Vector3<f32>  =  chain.basebone_relative_constraint_uv;                   // Basebone relative constraint is our hinge rotation axis!
-    let cw_constraint: Rad<f32>   = -joint.getHingeClockwiseConstraintDegs();     // Clockwise rotation is negative!
-    let acw_constraint: Rad<f32>  =  joint.getHingeAnticlockwiseConstraintDegs();
+    let cw_constraint: Rad<f32>   = -joint.get_hinge_clockwise_constraint_degs();     // Clockwise rotation is negative!
+    let acw_constraint: Rad<f32>  =  joint.get_hinge_anticlockwise_constraint_degs();
     
     // Get the inner-to-outer direction of this bone and project it onto the global hinge rotation axis
     let mut inner_to_outer_uv: Vector3<f32> = util::projectOntoPlane(chain[index].get_direction(), rotation_axis);

@@ -163,7 +163,7 @@ impl Structure{
 						// Updat the relative reference constraint UV if we hav a local hinge
 						if constraintType == chain::BaseboneConstraintType::LocalHinge
 						{
-                            let referenceAxis = self.mChains[index][0].joint.getHingeReferenceAxis();
+                            let referenceAxis = self.mChains[index][0].joint.get_hinge_reference_axis();
 							self.mChains[index].set_basebone_relative_reference_constraint_uv( connectionBoneMatrix * ( referenceAxis ) );
 						}
 					},
@@ -181,7 +181,7 @@ impl Structure{
 						// Updat the relative reference constraint UV if we hav a local hinge
 						if constraintType == chain::BaseboneConstraintType::LocalHinge
 						{
-                            let refferenceAxis = self.mChains[index][0].joint.getHingeReferenceAxis();
+                            let refferenceAxis = self.mChains[index][0].joint.get_hinge_reference_axis();
 							self.mChains[index].set_basebone_relative_reference_constraint_uv( connectionBoneMatrix * ( refferenceAxis ) );
 						}
 					},

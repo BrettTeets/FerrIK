@@ -267,7 +267,7 @@ impl Chain{
 		self.basebone_constraint_type = rotor_type;
 		self.basebone_constraint_uv   = constraint_axis.normalize();
 		self.basebone_relative_constraint_uv = self.basebone_constraint_uv;
-		self[0].joint.setAsBallJoint(angle);
+		self[0].joint.set_as_ball_joint(angle);
 	}
     
     pub fn set_hinge_basebone_constraint(&mut self,  hinge_type: BaseboneConstraintType,
@@ -298,11 +298,11 @@ impl Chain{
 		
 		if hinge_type == BaseboneConstraintType::GlobalHinge
 		{
-			hinge.setHinge(JointType::GLOBAL_HINGE, hinge_rotation_axis, cw_constraint_rads, acw_constraint_rads, hinge_reference_axis);
+			hinge.set_hinge(JointType::GlobalHinge, hinge_rotation_axis, cw_constraint_rads, acw_constraint_rads, hinge_reference_axis);
 		}
 		else
 		{
-			hinge.setHinge(JointType::LOCAL_HINGE, hinge_rotation_axis, cw_constraint_rads, acw_constraint_rads, hinge_reference_axis);
+			hinge.set_hinge(JointType::LocalHinge, hinge_rotation_axis, cw_constraint_rads, acw_constraint_rads, hinge_reference_axis);
 		}
 		//TODO: Can this be cleaned up it is probably a common operation.
 		self[0].set_joint(hinge);
