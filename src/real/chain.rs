@@ -61,8 +61,8 @@ impl Chain{
 		// If this is the basebone then set the base location and direction constraint.
 		if self.bones.len() == 0
 		{	
-			self.fixed_base_location =  bone.getStartLocation();
-			self.basebone_constraint_uv = bone.getDirectionUV();
+			self.fixed_base_location =  bone.get_start_location();
+			self.basebone_constraint_uv = bone.get_direction();
 		}
 		//finish up by adding the bone and updating the length. Rust prevents you from adding the bones
 		//first.
@@ -76,11 +76,11 @@ impl Chain{
 		if !self.bones.is_empty() { panic!("You cannot add the base bone to a chain using this method as it does not provide a start location."); }
 
 		// Get the end location of the last bone, which will be used as the start location of the new bone
-		let prev_bone_end = self.bones.last().unwrap().getEndLocation();
+		let prev_bone_end = self.bones.last().unwrap().end_location;
 
 		//set bone start to the previous bones end and set it's end to its current direction * len.
-		bone.setStartLocation(prev_bone_end);
-		bone.setEndLocation( prev_bone_end + ( bone.get_vector_to_end()));
+		bone.set_start_location(prev_bone_end);
+		bone.set_end_location( prev_bone_end + ( bone.get_vector_to_end()));
 		self.add_bone(bone);
 	}
 
@@ -133,7 +133,7 @@ impl Chain{
 			if solve_distance < best_solve_distance
 			{	
 				best_solve_distance = solve_distance;
-				best_solution = self.cloneIkChain();
+				best_solution = self.clone_ik_chain();
 				
 				// If we are happy that this solution meets our distance requirements then we can exit the loop now
 				if solve_distance <= self.solve_distance_threshold
@@ -185,41 +185,41 @@ impl Chain{
 	}
 
 	//TODO come back to this one, solve_for_target uses it and I am unsure about keeping that section.
-    fn cloneIkChain(&self) -> Vec<Bone>
+    fn clone_ik_chain(&self) -> Vec<Bone>
 	{
 		// Create a new Vector of FabrikBone3D objects of that size
-		let mut clonedChain: Vec<Bone> = Vec::new();
+		let mut cloned_chain: Vec<Bone> = Vec::new();
 
 		// For each bone in the chain being cloned...		
 		for bone in self.bones.iter()
 		{
 			// Use the copy constructor to create a new FabrikBone3D with the values set from the source FabrikBone3D.
 			// and add it to the cloned chain.
-			clonedChain.push(bone.clone() );
+			cloned_chain.push(bone.clone() );
 		}
 		
-		return clonedChain;
+		return cloned_chain;
 	}
 
 	//TODO: This should not be done here,
-    pub fn connectToStructure(&mut self, structure: Structure, chainNumber:usize,  boneNumber: usize)
+    pub fn connect_to_structure(&mut self, structure: Structure, chain_number:usize,  bone_number: usize)
 	{
 		// Sanity check chain exists
         //TODO, Why not ask the strucutre to validate this rather than validating it yourslef here?
-		let numChains: usize = structure.getNumChains();
-		if chainNumber > numChains { 
-		  panic!("Structure does not contain a chain {} - it has {} chains.", chainNumber, numChains); 
+		let num_chains: usize = structure.getNumChains();
+		if chain_number > num_chains { 
+		  panic!("Structure does not contain a chain {} - it has {} chains.", chain_number, num_chains); 
 		}
 		
 		// Sanity check bone exists
-		let numBones: usize = structure.getChain(chainNumber).get_num_bones();
-		if boneNumber > numBones { 
-		  panic!("Chain does not contain a bone {} - it has {} bones.", boneNumber,  numBones); 
+		let num_bones: usize = structure.getChain(chain_number).get_num_bones();
+		if bone_number > num_bones { 
+		  panic!("Chain does not contain a bone {} - it has {} bones.", bone_number,  num_bones); 
 		}
 		
 		// All good? Set the connection details
-		self.connected_chain_number = Some(chainNumber);
-		self.connected_bone_number  = Some(boneNumber);		
+		self.connected_chain_number = Some(chain_number);
+		self.connected_bone_number  = Some(bone_number);		
 	}
 }
 
@@ -267,7 +267,7 @@ impl Chain{
 		self.basebone_constraint_type = rotor_type;
 		self.basebone_constraint_uv   = constraint_axis.normalize();
 		self.basebone_relative_constraint_uv = self.basebone_constraint_uv;
-		self.get_bone(0).getJoint().setAsBallJoint(angle);
+		self[0].joint.setAsBallJoint(angle);
 	}
     
     pub fn set_hinge_basebone_constraint(&mut self,  hinge_type: BaseboneConstraintType,
@@ -305,7 +305,7 @@ impl Chain{
 			hinge.setHinge(JointType::LOCAL_HINGE, hinge_rotation_axis, cw_constraint_rads, acw_constraint_rads, hinge_reference_axis);
 		}
 		//TODO: Can this be cleaned up it is probably a common operation.
-		self.get_bone(0).setJoint(hinge);
+		self[0].set_joint(hinge);
 	}
 
     pub fn set_freely_rotating_global_hinged_basebone(&mut self, hinge_rotation_axis: Vector3<f32>)
@@ -431,10 +431,7 @@ impl Chain{
 	}
 
     pub fn get_base_location(&self) -> Vector3<f32> 
-    { return self.bones[0].getStartLocation(); }	
-
-    pub fn get_bone(&mut self, bone_number: usize) -> &mut Bone
-    { return &mut self.bones[bone_number]; }
+    { return self[0].get_start_location(); }	
 
     pub fn get_chain(&self) -> &Vec<Bone>
     { return &self.bones; }
@@ -449,7 +446,7 @@ impl Chain{
     { return self.connected_chain_number; }
 
     pub fn get_effector_location(&self) -> Vector3<f32> 
-    { return self.bones[self.bones.len()-1].getEndLocation(); }
+    { return self.bones[self.bones.len()-1].end_location; }
 
     pub fn get_embedded_target_mode(&self) -> bool
     { return self.use_embedded_target; }
@@ -465,7 +462,7 @@ impl Chain{
 		let mut length: f32 = 0.0;		
 		for bone in self.bones.iter()
 		{  
-			length += bone.liveLength();
+			length += bone.live_length();
 		}		
 		return length;
 	}	
