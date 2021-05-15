@@ -1,4 +1,4 @@
-use super::{bone::Bone, joint::Joint, joint::JointType, structure::Structure, joint, util};
+use super::{bone::Bone, joint::Joint, joint::JointType, structure::Structure, joint, util, solver};
 use cgmath::{Vector3, Rad, InnerSpace, Matrix3};
 
 #[derive(Clone, Copy, PartialEq)]
@@ -12,24 +12,24 @@ pub enum BaseboneConstraintType
 }
 
 pub struct Chain{
-    bones: Vec<Bone>,
-    solve_distance_threshold: f32,
-    max_iteration_attempts: usize,
-    min_iteration_change: f32,
-    chain_length: f32,
-    fixed_base_location: Vector3<f32>,
-    fixed_base_mode: bool,
-    basebone_constraint_type: BaseboneConstraintType,
-    basebone_constraint_uv: Vector3<f32>,
-    basebone_relative_constraint_uv: Vector3<f32>,
-    basebone_relative_reference_constraint_uv: Vector3<f32>,
-    last_target_location: Vector3<f32>,
-    last_base_location: Vector3<f32>,
-    current_solve_distance: f32,
-    connected_chain_number: Option<usize>,
-    connected_bone_number: Option<usize>,
-    embedded_target: Vector3<f32>,
-    use_embedded_target: bool,
+    pub bones: Vec<Bone>,
+    pub solve_distance_threshold: f32,
+    pub max_iteration_attempts: usize,
+    pub min_iteration_change: f32,
+    pub chain_length: f32,
+    pub fixed_base_location: Vector3<f32>,
+    pub fixed_base_mode: bool,
+    pub basebone_constraint_type: BaseboneConstraintType,
+    pub basebone_constraint_uv: Vector3<f32>,
+    pub basebone_relative_constraint_uv: Vector3<f32>,
+    pub basebone_relative_reference_constraint_uv: Vector3<f32>,
+    pub last_target_location: Vector3<f32>,
+    pub last_base_location: Vector3<f32>,
+    pub current_solve_distance: f32,
+    pub connected_chain_number: Option<usize>,
+    pub connected_bone_number: Option<usize>,
+    pub embedded_target: Vector3<f32>,
+    pub use_embedded_target: bool,
 }
 
 impl Chain{
@@ -126,7 +126,7 @@ impl Chain{
 		{	
 			// Solve the chain for this target, rember this is going to modify the actual bones stored
 			// in this data structure. Is this really the best way to do this?
-			solve_distance = self.solve_ik(new_target);
+			solve_distance = solver::solve_ik(self, new_target);
 			
 			// Did we solve it for distance? If so, update our best distance and best solution, and also
 			// update our last pass solve distance. Note: We will ALWAYS beat our last solve distance on the first run. 
@@ -231,6 +231,14 @@ impl Index<usize> for Chain {
     fn index(&self, i: usize) -> &Self::Output {
         &self.bones[i]
     }
+}
+
+use std::ops::IndexMut;
+impl IndexMut<usize> for Chain{
+
+	fn index_mut(&mut self, i: usize) -> &mut Self::Output{
+		&mut self.bones[i]
+	}
 }
 
 //setters
@@ -473,387 +481,20 @@ impl Chain{
 }
 
 impl Chain{
-    pub fn solve_ik(&mut self, target: Vector3<f32>) -> f32
-	{	
-		// Sanity check that there are bones in the chain
-		if self.bones.is_empty() { 
-		  panic!("It makes no sense to solve an IK chain with zero bones."); 
-		}
-		
-		// ---------- Forward pass from end effector to base -----------
 
-		// Loop over all bones in the chain, from the end effector (numBones-1) back to the basebone (0)		
-		//for (int loop = mChain.size()-1; loop >= 0; --loop)
-        for this in (0..self.bones.len()).rev()
-		{
-			// If we are NOT working on the end effector bone
-			if this != self.bones.len() - 1
-			{
-				// Get the joint type for this bone and handle constraints on thisBoneInnerToOuterUV
-				
-				// At this stage we have a outer-to-inner unit vector for this bone which is within our constraints,
-				// so we can set the new inner joint location to be the end joint location of this bone plus the
-				// outer-to-inner direction unit vector multiplied by the length of the bone.
-				let newStartLocation = self.bones[this].getEndLocation() + (match self[this].getJointType(){
-					JointType::BALL => self.calc_forward_ball_joint_constraint(this, -self[this+1].getDirectionUV(), -self[this].getDirectionUV()),
-					JointType::GLOBAL_HINGE => self.calc_forward_global_joint_constraint(this, -self[this].getDirectionUV()),
-					JointType::LOCAL_HINGE => self.calc_forward_local_joint_constraint(this, -self[this].getDirectionUV()),
-				}* (self[this].length()) );
-
-				// Set the new start joint location for this bone
-				self.set_forward_pass_position(this, newStartLocation);
-			}
-			else // If we ARE working on the end effector bone...
-			{
-				// Snap the end effector's end location to the target
-				self.bones[this].setEndLocation(target);
-				
-				// Calculate the new start joint location as the end joint location plus the outer-to-inner direction UV
-				// multiplied by the length of the bone.
-				let new_start_location = match self[this].getJointType(){
-					JointType::BALL => target + ( -self.bones[this].getDirectionUV() * (self[this].length()) ),				
-                    JointType::GLOBAL_HINGE => // Global hinges get constrained to the hinge rotation axis, but not the reference axis within the hinge plane
-						(util::projectOntoPlane(-self.bones[this].getDirectionUV(), self[this].getJoint().getHingeRotationAxis() )) *  (self[this].length()),
-                    JointType::LOCAL_HINGE => 
-						self.calc_forward_effector_local_hinge(this, -self.bones[this].getDirectionUV()),
-				};
-				
-				self.set_forward_pass_position(this, new_start_location);
-			}//handled case where this a end effector and when its not.
-		} // End of forward pass
-
-		// ---------- Backward pass from base to end effector -----------
-        for index in 0..self.bones.len()
-		{
-			// If we are not working on the basebone
-			if index != 0
-			{
-				// At this stage we have a outer-to-inner unit vector for this bone which is within our constraints,
-				// so we can set the new inner joint location to be the end joint location of this bone plus the
-				// outer-to-inner direction unit vector multiplied by the length of the bone.
-				let new_end_location = self.bones[index].getStartLocation() +
-				 	match self[index].getJointType() {
-						JointType::BALL => 
-							self.calc_backwards_ball_joint(index, self.bones[index].getDirectionUV(), self.bones[index-1].getDirectionUV(), self[index].length()),
-						JointType::GLOBAL_HINGE => 
-							self.calc_backwards_global_joint(index, self.bones[index].getDirectionUV(), self[index].length()),
-						JointType::LOCAL_HINGE => 
-							self.calc_backwards_local_joint(index,  self.bones[index].getDirectionUV(), self.bones[index-1].getDirectionUV(), self[index].length()),
-				}; // End of local hinge section
-
-				// Set the new start joint location for this bone
-				self.set_backwards_position(index, new_end_location);
-			}
-			else // If we ARE working on the basebone...
-			{	
-				// If the base location is fixed then snap the start location of the basebone back to the fixed base...
-				if self.fixed_base_mode
-				{
-					self.bones[index].setStartLocation(self.fixed_base_location);
-				}
-				else // ...otherwise project it backwards from the end to the start by its length.
-				{
-                    let temp = self.bones[index].getEndLocation() - ( self.bones[index].getDirectionUV() * (self[index].length()));
-					self.bones[index].setStartLocation( temp  ) ;
-				}
-
-				let new_end_location = self[index].getStartLocation() + 
-					match self.basebone_constraint_type{
-						BaseboneConstraintType::None => // If the basebone is unconstrained then process it as usual...
-							self.bones[index].getDirectionUV() * (self[index].length()),
-						BaseboneConstraintType::GlobalRotor => 	
-							self.calc_backwards_basebone_global_rotor(index, self[index].length()),
-						BaseboneConstraintType::LocalRotor => 
-							self.calc_backwards_basebone_local_rotor(index, self[index].length()),
-						BaseboneConstraintType::GlobalHinge => 
-							self.calc_backwards_basebone_global_hinge(index, self[index].length()),
-						BaseboneConstraintType::LocalHinge => 
-							self.calc_backwards_basebone_local_hinge(index, self[index].length())
-				};
-
-				self.set_backwards_basebone(index, new_end_location);
-			} // End of basebone handling section
-		} // End of backward-pass loop over all bones
-
-		// Update our last target location
-		self.last_target_location = target;
-				
-		// Finally, calculate and return the distance between the current effector location and the target.
-		return util::distanceBetween(self.bones[self.bones.len()-1].getEndLocation(), target);
+	pub fn forward_pass_index_iter(&self) -> std::iter::Rev<std::ops::Range<usize>>{
+		return (0..self.bones.len()).rev();
 	}
 
-	pub fn calc_forward_ball_joint_constraint(&self, this: usize, outerBoneOuterToInnerUV: Vector3<f32>, 
-		this_bone_outer_to_inner_uv: Vector3<f32>) -> Vector3<f32>{
-		// Constrain to relative angle between this bone and the outer bone if required
-		let angleBetweenDegs: Rad<f32>    = util::getAngleBetweenDegs(outerBoneOuterToInnerUV, this_bone_outer_to_inner_uv);
-		let constraintAngleDegs: Rad<f32> = self[this].getJoint().getBallJointConstraintDegs();
-		if angleBetweenDegs > constraintAngleDegs
-		{	
-			return util::getAngleLimitedUnitVectorDegs(this_bone_outer_to_inner_uv, outerBoneOuterToInnerUV, constraintAngleDegs);
-		}
-		return this_bone_outer_to_inner_uv;
+	pub fn is_not_end_effector(&self, index: usize) -> bool{
+		return index != self.bones.len() - 1;
 	}
 
-	pub fn calc_forward_global_joint_constraint(&self, this: usize,
-		 this_bone_outer_to_inner_uv: Vector3<f32>) -> Vector3<f32>{
-		// Project this bone outer-to-inner direction onto the hinge rotation axis
-		// Note: The returned vector is normalised.
-		return util::projectOntoPlane(this_bone_outer_to_inner_uv, self[this].getJoint().getHingeRotationAxis() ); 
-		
-		// NOTE: Constraining about the hinge reference axis on this forward pass leads to poor solutions... so we won't.
+	pub fn backwards_pass_index_iter(&self) -> std::ops::Range<usize>{
+		return 0..self.bones.len();
 	}
 
-	pub fn calc_forward_local_joint_constraint(&self, this: usize,
-		 this_bone_outer_to_inner_uv: Vector3<f32>) -> Vector3<f32> 
-	{
-		// Not a basebone? Then construct a rotation matrix based on the previous bones inner-to-to-inner direction...
-		let m: Matrix3<f32>;
-		let relativeHingeRotationAxis: Vector3<f32>;
-		if this > 0 {
-			m = util::createRotationMatrix( self.bones[this-1].getDirectionUV() );
-			relativeHingeRotationAxis = m * ( self[this].getJoint().getHingeRotationAxis() ).normalize();
-		}
-		else // ...basebone? Need to construct matrix from the relative constraint UV.
-		{
-			relativeHingeRotationAxis = self.basebone_relative_constraint_uv;
-		}
-		
-		// ...and transform the hinge rotation axis into the previous bones frame of reference.
-		//Vec3f 
-							
-		// Project this bone's outer-to-inner direction onto the plane described by the relative hinge rotation axis
-		// Note: The returned vector is normalised.					
-		return util::projectOntoPlane(this_bone_outer_to_inner_uv, relativeHingeRotationAxis);
-							
-		// NOTE: Constraining about the hinge reference axis on this forward pass leads to poor solutions... so we won't.										
-	}
-
-	pub fn set_forward_pass_position(&mut self, this: usize, newStartLocation: Vector3<f32>){
-		// Set the new start joint location for this bone
-		self.bones[this].setStartLocation(newStartLocation);
-
-		// If we are not working on the basebone, then we also set the end joint location of
-		// the previous bone in the chain (i.e. the bone closer to the base) to be the new
-		// start joint location of this bone.
-		if this > 0
-		{
-			self.bones[this-1].setEndLocation(newStartLocation);
-		}
-	}
-
-	pub fn calc_forward_effector_local_hinge(&self, this: usize, thisBoneOuterToInnerUV: Vector3<f32>) -> Vector3<f32>{
-		// Local hinges get constrained to the hinge rotation axis, but not the reference axis within the hinge plane
-						
-		// Construct a rotation matrix based on the previous bones inner-to-to-inner direction...
-		let m: Matrix3<f32> = util::createRotationMatrix( self.bones[this-1].getDirectionUV() );
-		
-		// ...and transform the hinge rotation axis into the previous bones frame of reference.
-		let relativeHingeRotationAxis: Vector3<f32> = m * ( self[this].getJoint().getHingeRotationAxis() ).normalize();
-							
-		// Project this bone's outer-to-inner direction onto the plane described by the relative hinge rotation axis
-		// Note: The returned vector is normalised.					
-		return ( util::projectOntoPlane(thisBoneOuterToInnerUV, relativeHingeRotationAxis)) * (self[this].length()) ;
-	}
-
-	fn calc_backwards_ball_joint(&self, index: usize, thisBoneInnerToOuterUV: Vector3<f32>,
-		prevBoneInnerToOuterUV: Vector3<f32>, thisBoneLength: f32) -> Vector3<f32>{
-		let angleBetweenDegs: Rad<f32>    = util::getAngleBetweenDegs(prevBoneInnerToOuterUV, thisBoneInnerToOuterUV);
-		let constraintAngleDegs: Rad<f32> = self[index].getJoint().getBallJointConstraintDegs(); 
-		
-		// Keep this bone direction constrained within the rotor about the previous bone direction
-		if angleBetweenDegs > constraintAngleDegs
-		{
-			return util::getAngleLimitedUnitVectorDegs(thisBoneInnerToOuterUV, prevBoneInnerToOuterUV, constraintAngleDegs);
-		}
-		return thisBoneInnerToOuterUV * (thisBoneLength);
-	}
-
-	fn calc_backwards_global_joint(&self, index: usize, 
-		mut thisBoneInnerToOuterUV: Vector3<f32>, thisBoneLength: f32) -> Vector3<f32>{
-		// Get the hinge rotation axis and project our inner-to-outer UV onto it
-		let hingeRotationAxis: Vector3<f32>  =  self[index].getJoint().getHingeRotationAxis();
-		thisBoneInnerToOuterUV = util::projectOntoPlane(thisBoneInnerToOuterUV, hingeRotationAxis);
-		
-		// If there are joint constraints, then we must honour them...
-		let cwConstraintDegs: Rad<f32>   = -self[index].getJoint().getHingeClockwiseConstraintDegs();
-		let acwConstraintDegs: Rad<f32>  =  self[index].getJoint().getHingeAnticlockwiseConstraintDegs();
-		//passing the scalar of the rads in.
-		if  !( util::approximatelyEquals(cwConstraintDegs.0, -joint::MAX_CONSTRAINT_ANGLE_DEGS.0, 0.001) ) &&
-			 !( util::approximatelyEquals(acwConstraintDegs.0, joint::MAX_CONSTRAINT_ANGLE_DEGS.0, 0.001) ) 
-		{
-			let hingeReferenceAxis: Vector3<f32> =  self[index].getJoint().getHingeReferenceAxis();
-			
-			// Get the signed angle (about the hinge rotation axis) between the hinge reference axis and the hinge-rotation aligned bone UV
-			// Note: ACW rotation is positive, CW rotation is negative.
-			let signedAngleDegs: f32 = util::getSignedAngleBetweenDegs(hingeReferenceAxis, thisBoneInnerToOuterUV, hingeRotationAxis);
-			
-			// Make our bone inner-to-outer UV the hinge reference axis rotated by its maximum clockwise or anticlockwise rotation as required
-			if signedAngleDegs > acwConstraintDegs.0
-			{	
-				return util::rotateAboutAxis(hingeReferenceAxis, acwConstraintDegs, hingeRotationAxis).normalize();		        		
-			}
-			else if signedAngleDegs < cwConstraintDegs.0
-			{	
-				return util::rotateAboutAxis(hingeReferenceAxis, cwConstraintDegs, hingeRotationAxis).normalize();			        		
-			}
-		}
-		return thisBoneInnerToOuterUV * (thisBoneLength);
-	}
-
-	fn calc_backwards_local_joint(&self, index: usize, mut thisBoneInnerToOuterUV: Vector3<f32>,
-		prevBoneInnerToOuterUV: Vector3<f32>, thisBoneLength: f32) -> Vector3<f32>{
-		// Transform the hinge rotation axis to be relative to the previous bone in the chain
-		let hingeRotationAxis: Vector3<f32>  = self[index].getJoint().getHingeRotationAxis();
-					
-		// Construct a rotation matrix based on the previous bone's direction
-		let m: Matrix3<f32> = util::createRotationMatrix(prevBoneInnerToOuterUV);
-		
-		// Transform the hinge rotation axis into the previous bone's frame of reference
-		let relativeHingeRotationAxis: Vector3<f32>  = m * (hingeRotationAxis).normalize();
-		
-		
-		// Project this bone direction onto the plane described by the hinge rotation axis
-		// Note: The returned vector is normalised.
-		thisBoneInnerToOuterUV = util::projectOntoPlane(thisBoneInnerToOuterUV, relativeHingeRotationAxis);
-		
-		// Constrain rotation about reference axis if required
-		let cwConstraintDegs: Rad<f32>   = -self[index].getJoint().getHingeClockwiseConstraintDegs();
-		let acwConstraintDegs: Rad<f32>  =  self[index].getJoint().getHingeAnticlockwiseConstraintDegs();
-		if  !( util::approximatelyEquals(cwConstraintDegs.0, -joint::MAX_CONSTRAINT_ANGLE_DEGS.0, 0.001) ) &&
-			 !( util::approximatelyEquals(acwConstraintDegs.0, joint::MAX_CONSTRAINT_ANGLE_DEGS.0, 0.001) ) 
-		{
-			// Calc. the reference axis in local space
-			let relativeHingeReferenceAxis: Vector3<f32> = m * ( self[index].getJoint().getHingeReferenceAxis() ).normalize();
-			
-			// Get the signed angle (about the hinge rotation axis) between the hinge reference axis and the hinge-rotation aligned bone UV
-			// Note: ACW rotation is positive, CW rotation is negative.
-			let signedAngleDegs: f32 = util::getSignedAngleBetweenDegs(relativeHingeReferenceAxis, thisBoneInnerToOuterUV, relativeHingeRotationAxis);
-			
-			// Make our bone inner-to-outer UV the hinge reference axis rotated by its maximum clockwise or anticlockwise rotation as required
-			if signedAngleDegs > acwConstraintDegs.0
-			{	
-				return util::rotateAboutAxis(relativeHingeReferenceAxis, acwConstraintDegs, relativeHingeRotationAxis).normalize();		        		
-			}
-			else if signedAngleDegs < cwConstraintDegs.0
-			{	
-				return util::rotateAboutAxis(relativeHingeReferenceAxis, cwConstraintDegs, relativeHingeRotationAxis).normalize();			        		
-			}
-		}
-		return  thisBoneInnerToOuterUV * (thisBoneLength);
-	}
-
-	fn set_backwards_position(&mut self, index: usize, newEndLocation: Vector3<f32>){
-		self.bones[index].setEndLocation(newEndLocation);
-
-		// If we are not working on the end effector bone, then we set the start joint location of the next bone in
-		// the chain (i.e. the bone closer to the target) to be the new end joint location of this bone.
-		if index < self.bones.len() - 1 { 
-			self.bones[index+1].setStartLocation(newEndLocation); 
-		}
-	}
-
-	fn set_backwards_basebone(&mut self, index: usize, newEndLocation: Vector3<f32>){
-		self.bones[index].setEndLocation( newEndLocation );
-						
-		// Also, set the start location of the next bone to be the end location of this bone
-		if self.bones.len() > 1 { 
-			self.bones[1].setStartLocation(newEndLocation); 
-		}
-	}
-
-	fn calc_backwards_basebone_global_rotor(&mut self, index: usize, thisBoneLength: f32) -> Vector3<f32>
-	{
-		
-		let mut thisBoneInnerToOuterUV: Vector3<f32> = self.bones[index].getDirectionUV();				
-		let angleBetweenDegs: Rad<f32>    = util::getAngleBetweenDegs(self.basebone_constraint_uv, thisBoneInnerToOuterUV);
-		let constraintAngleDegs: Rad<f32> = self.bones[index].getBallJointConstraintDegs(); 
-	
-		if angleBetweenDegs > constraintAngleDegs
-		{
-			thisBoneInnerToOuterUV = util::getAngleLimitedUnitVectorDegs(thisBoneInnerToOuterUV, self.basebone_constraint_uv, constraintAngleDegs);
-		}
-		return thisBoneInnerToOuterUV * (thisBoneLength);
-	}
-
-	fn calc_backwards_basebone_local_rotor(&mut self, index: usize, thisBoneLength: f32) -> Vector3<f32>{
-		// Note: The mBaseboneRelativeConstraintUV is updated in the FabrikStructure3D.solveForTarget()
-		// method BEFORE this FabrikChain3D.solveForTarget() method is called. We no knowledge of the
-		// direction of the bone we're connected to in another chain and so cannot calculate this 
-		// relative basebone constraint direction on our own, but the FabrikStructure3D does it for
-		// us so we are now free to use it here.
-		
-		// Get the inner-to-outer direction of this bone
-		let mut thisBoneInnerToOuterUV: Vector3<f32> = self.bones[index].getDirectionUV();
-								
-		// Constrain about the relative basebone constraint unit vector as neccessary
-		let angleBetweenDegs: Rad<f32>    = util::getAngleBetweenDegs(self.basebone_relative_constraint_uv, thisBoneInnerToOuterUV);
-		let constraintAngleDegs: Rad<f32> = self.bones[index].getBallJointConstraintDegs();
-		if angleBetweenDegs > constraintAngleDegs
-		{
-			thisBoneInnerToOuterUV = util::getAngleLimitedUnitVectorDegs(thisBoneInnerToOuterUV, self.basebone_relative_constraint_uv, constraintAngleDegs);
-		}
-		return thisBoneInnerToOuterUV * (thisBoneLength);
-	}
-
-	fn calc_backwards_basebone_global_hinge(&mut self, index: usize, thisBoneLength: f32) -> Vector3<f32>{
-		let thisJoint: Joint  =  self.bones[index].getJoint();
-		let hingeRotationAxis: Vector3<f32>  =  thisJoint.getHingeRotationAxis();
-		let cwConstraintDegs: Rad<f32>   = -thisJoint.getHingeClockwiseConstraintDegs();     // Clockwise rotation is negative!
-		let acwConstraintDegs: Rad<f32>  =  thisJoint.getHingeAnticlockwiseConstraintDegs();
-		
-		// Get the inner-to-outer direction of this bone and project it onto the global hinge rotation axis
-		let mut thisBoneInnerToOuterUV: Vector3<f32> = util::projectOntoPlane(self.bones[index].getDirectionUV(), hingeRotationAxis);
-				
-		// If we have a global hinge which is not freely rotating then we must constrain about the reference axis
-		if  !( util::approximatelyEquals(cwConstraintDegs.0 , -joint::MAX_CONSTRAINT_ANGLE_DEGS.0, 0.01) &&
-				util::approximatelyEquals(acwConstraintDegs.0,  joint::MAX_CONSTRAINT_ANGLE_DEGS.0, 0.01) ) 
-		{
-			// Grab the hinge reference axis and calculate the current signed angle between it and our bone direction (about the hinge
-			// rotation axis). Note: ACW rotation is positive, CW rotation is negative.
-			let hingeReferenceAxis: Vector3<f32> = thisJoint.getHingeReferenceAxis();
-			let signedAngleDegs: f32    = util::getSignedAngleBetweenDegs(hingeReferenceAxis, thisBoneInnerToOuterUV, hingeRotationAxis);
-			
-			// Constrain as necessary
-			if signedAngleDegs > acwConstraintDegs.0
-			{	
-				thisBoneInnerToOuterUV = util::rotateAboutAxis(hingeReferenceAxis, acwConstraintDegs, hingeRotationAxis).normalize();		        		
-			}
-			else if signedAngleDegs < cwConstraintDegs.0
-			{	
-				thisBoneInnerToOuterUV = util::rotateAboutAxis(hingeReferenceAxis, cwConstraintDegs, hingeRotationAxis).normalize();			        		
-			}
-		}
-		return thisBoneInnerToOuterUV * (thisBoneLength);
-	}
-
-	fn calc_backwards_basebone_local_hinge(&mut self, index: usize, thisBoneLength: f32) -> Vector3<f32> {
-		let thisJoint: Joint  =  self.bones[index].getJoint();
-		let hingeRotationAxis: Vector3<f32>  =  self.basebone_relative_constraint_uv;                   // Basebone relative constraint is our hinge rotation axis!
-		let cwConstraintDegs: Rad<f32>   = -thisJoint.getHingeClockwiseConstraintDegs();     // Clockwise rotation is negative!
-		let acwConstraintDegs: Rad<f32>  =  thisJoint.getHingeAnticlockwiseConstraintDegs();
-		
-		// Get the inner-to-outer direction of this bone and project it onto the global hinge rotation axis
-		let mut thisBoneInnerToOuterUV: Vector3<f32> = util::projectOntoPlane(self.bones[index].getDirectionUV(), hingeRotationAxis);
-		
-		// If we have a local hinge which is not freely rotating then we must constrain about the reference axis
-		if  !( util::approximatelyEquals(cwConstraintDegs.0 , -joint::MAX_CONSTRAINT_ANGLE_DEGS.0, 0.01) &&
-				util::approximatelyEquals(acwConstraintDegs.0,  joint::MAX_CONSTRAINT_ANGLE_DEGS.0, 0.01) ) 
-		{
-			// Grab the hinge reference axis and calculate the current signed angle between it and our bone direction (about the hinge
-			// rotation axis). Note: ACW rotation is positive, CW rotation is negative.
-			let hingeReferenceAxis: Vector3<f32> = self.basebone_relative_reference_constraint_uv; 
-			let signedAngleDegs: f32    = util::getSignedAngleBetweenDegs(hingeReferenceAxis, thisBoneInnerToOuterUV, hingeRotationAxis);
-			
-			// Constrain as necessary
-			if signedAngleDegs > acwConstraintDegs.0
-			{	
-				thisBoneInnerToOuterUV = util::rotateAboutAxis(hingeReferenceAxis, acwConstraintDegs, hingeRotationAxis).normalize();		        		
-			}
-			else if signedAngleDegs < cwConstraintDegs.0
-			{	
-				thisBoneInnerToOuterUV = util::rotateAboutAxis(hingeReferenceAxis, cwConstraintDegs, hingeRotationAxis).normalize();			        		
-			}
-		}
-		return thisBoneInnerToOuterUV * (thisBoneLength);
+	pub fn is_not_basebone(&self, index: usize) -> bool {
+		return index != 0;
 	}
 } //line 943
