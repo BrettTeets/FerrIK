@@ -3,136 +3,116 @@ use cgmath::{Vector3, MetricSpace, Rad};
 
 #[derive(Clone, PartialEq, Debug)]
 pub struct Bone{
-    mBoneConnectionPoint: crate::BoneConnectionPoint,
-	mJoint: Joint,
-	mStartLocation: Vector3<f32>,
-	mEndLocation: Vector3<f32>,
-    mLength: f32,
+    bone_connection_point: crate::BoneConnectionPoint,
+	pub joint: Joint,
+	pub start_location: Vector3<f32>,
+	pub end_location: Vector3<f32>,
+    length: f32,
 }
 
 impl Bone{
     pub fn new() -> Self{
         Self{
-            mBoneConnectionPoint: crate::BoneConnectionPoint::END,
-            mJoint: Joint::new(),
-            mStartLocation: Vector3::new(0.0,0.0,0.0),
-            mEndLocation: Vector3::new(0.0,0.0,0.0),
-            mLength: 0.0,
+            bone_connection_point: crate::BoneConnectionPoint::END,
+            joint: Joint::new(),
+            start_location: Vector3::new(0.0,0.0,0.0),
+            end_location: Vector3::new(0.0,0.0,0.0),
+            length: 0.0,
         }
     }
 
-    pub fn new_with_vectors(startLocation: Vector3<f32>, endLocation: Vector3<f32>) -> Self
+    pub fn new_with_vectors(start_location: Vector3<f32>, end_location: Vector3<f32>) -> Self
 	{
         Self{
-            mBoneConnectionPoint: crate::BoneConnectionPoint::END,
-            mJoint: Joint::new(),
-            mStartLocation: startLocation,
-            mEndLocation: endLocation,
-            mLength: startLocation.distance(endLocation),
+            bone_connection_point: crate::BoneConnectionPoint::END,
+            joint: Joint::new(),
+            start_location: start_location,
+            end_location: end_location,
+            length: start_location.distance(end_location),
         }
 	}
 
     pub fn length(&self) -> f32
-    {	return self.mLength;	}
+    {	return self.length;	}
 
-    pub fn liveLength(&self) -> f32
-    { return self.mStartLocation.distance(self.mEndLocation);	}
+    pub fn live_length(&self) -> f32
+    { return self.start_location.distance(self.end_location);	}
 
     ///Returns a vector showing the length and direction of the bone, with it's base center
     /// at 0,0 for easy repositioning along the chain. add consecutive bones uses it.
     pub fn get_vector_to_end(&self) -> Vector3<f32>{
-        let len = self.mStartLocation.distance(self.mEndLocation);
-        let dir = self.getDirectionUV();
+        let len = self.start_location.distance(self.end_location);
+        let dir = self.get_direction();
         util::validateDirectionUV(dir);
         util::validateLength(len);
 
         return dir * len;
     }
 
-    pub fn setBoneConnectionPoint(&mut self, bcp: crate::BoneConnectionPoint) 
-    { self.mBoneConnectionPoint = bcp; }
+    pub fn set_bone_connection_point(&mut self, bcp: crate::BoneConnectionPoint) 
+    { self.bone_connection_point = bcp; }
 
-    pub fn getBoneConnectionPoint(&self) -> crate::BoneConnectionPoint
-     { return self.mBoneConnectionPoint; }
+    pub fn get_bone_connection_point(&self) -> crate::BoneConnectionPoint
+     { return self.bone_connection_point; }
 
-    pub fn getStartLocation(&self) -> Vector3<f32>
-    { return self.mStartLocation; }
+    pub fn get_start_location(&self) -> Vector3<f32>
+    { return self.start_location; }
 
-    pub fn getEndLocation(&self) -> Vector3<f32>
-    { return self.mEndLocation; }
+    pub fn set_joint(&mut self, joint: Joint) 
+    { self.joint.set(joint); }
 
-    pub fn setJoint(&mut self, joint: Joint) 
-    { self.mJoint.set(joint); }
+    pub fn get_joint_type(&self)	-> joint::JointType
+    { return self.joint.get_joint_type(); }
 
-    //Should joint be ina box as a pointer?
-    pub fn getJoint(&self)	-> Joint
-    { return self.mJoint; }
+    pub fn set_hinge_joint_clockwise_constraint_degs(&mut self, angle: Rad<f32>) 
+    {	self.joint.set_hinge_joint_clockwise_constraint(angle);	}
 
-    pub fn getJointType(&self)	-> joint::JointType
-    { return self.mJoint.getJointType(); }
-
-    pub fn setHingeJointClockwiseConstraintDegs(&mut self, angleDegs: Rad<f32>) 
-    {	self.mJoint.setHingeJointClockwiseConstraintDegs(angleDegs);	}
-
-    pub fn getHingeJointClockwiseConstraintDegs(&self)	->Rad<f32>
-    { return self.mJoint.getHingeClockwiseConstraintDegs(); }
+    pub fn get_hinge_joint_clockwise_constraint_degs(&self)	->Rad<f32>
+    { return self.joint.get_hinge_clockwise_constraint_degs(); }
 	
-    pub fn setHingeJointAnticlockwiseConstraintDegs(&mut self, angleDegs: Rad<f32>) 
-    { self.mJoint.setHingeJointAnticlockwiseConstraintDegs(angleDegs); }
+    pub fn set_hinge_joint_anticlockwise_constraint_degs(&mut self, angle: Rad<f32>) 
+    { self.joint.set_hinge_joint_anticlockwise_constraint(angle); }
 	
-    pub fn getHingeJointAnticlockwiseConstraintDegs(&self)->Rad<f32>
-    { return self.mJoint.getHingeAnticlockwiseConstraintDegs(); }
+    pub fn get_hinge_joint_anticlockwise_constraint_degs(&self)->Rad<f32>
+    { return self.joint.get_hinge_anticlockwise_constraint_degs(); }
 
-    pub fn setBallJointConstraintDegs(&mut self, angleDegs: Rad<f32>)
+    pub fn set_ball_constraint(&mut self, angle: Rad<f32>)
 	{	
-		if angleDegs < joint::MIN_CONSTRAINT_ANGLE_DEGS || angleDegs > joint::MAX_CONSTRAINT_ANGLE_DEGS
+		if angle < joint::MIN_CONSTRAINT_ANGLE_DEGS || angle > joint::MAX_CONSTRAINT_ANGLE_DEGS
 		{
 			panic!("Rotor constraints for ball joints must be in the range 0.0f to 180.0f degrees inclusive.");
 		}
 		
-		self.mJoint.setBallJointConstraintDegs(angleDegs);
+		self.joint.set_ball_joint_constraint_degs(angle);
 	}
 
-    pub fn getBallJointConstraintDegs(&self) -> Rad<f32>
-    { return self.mJoint.getBallJointConstraintDegs();	}
+    pub fn get_ball_constraint(&self) -> Rad<f32>
+    { return self.joint.get_ball_joint_constraint();	}
 
-    pub fn getDirectionUV(&self) -> Vector3<f32>
+    pub fn get_direction(&self) -> Vector3<f32>
 	{
-        return util::getDirectionUV(self.mStartLocation, self.mEndLocation);
+        return util::getDirectionUV(self.start_location, self.end_location);
 	}
 
-    pub fn getGlobalPitchDegs(&self) -> Rad<f32>
+    pub fn get_global_pitch_degs(&self) -> Rad<f32>
 	{
-        let d = util::getDirectionUV(self.mStartLocation, self.mEndLocation);
+        let d = util::getDirectionUV(self.start_location, self.end_location);
 		return util::getGlobalPitchDegs(d);
 	}
 
-    pub fn getGlobalYawDegs(&self) -> Rad<f32>
+    pub fn get_global_yaw_degs(&self) -> Rad<f32>
 	{
-        let d = util::getDirectionUV(self.mStartLocation, self.mEndLocation);
+        let d = util::getDirectionUV(self.start_location, self.end_location);
 		return  util::getGlobalYawDegs(d);
 	}
 
-    pub fn setStartLocation(&mut self, location: Vector3<f32>)
+    pub fn set_start_location(&mut self, location: Vector3<f32>)
 	{
-		self.mStartLocation = location;
+		self.start_location = location;
 	}
 
-    pub fn setEndLocation(&mut self, location: Vector3<f32>)
+    pub fn set_end_location(&mut self, location: Vector3<f32>)
 	{
-		self.mEndLocation = location;               
+		self.end_location = location;               
 	}
-
-    fn setLength(&mut self, length: f32)
-	{
-		if length > 0.0
-		{
-			self.mLength = length;
-		}
-		else
-		{
-			panic!("Bone length must be a positive value.");
-		}
-	}
-	
 }

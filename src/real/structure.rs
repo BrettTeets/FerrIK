@@ -123,15 +123,15 @@ impl Structure{
 				//let hostChain: Chain = self.mChains[host_id];
                 let connect_id = self.mChains[index].get_connected_bone_number().unwrap();
 				//let hostBone: &mut Bone   = self.mChains[host_id].getBone(connect_id);
-                let hostBoneConnection = self.mChains[host_id].get_bone(connect_id).getBoneConnectionPoint();
+                let hostBoneConnection = self.mChains[host_id][connect_id].get_bone_connection_point();
                 if hostBoneConnection == crate::BoneConnectionPoint::START 
                 {
-                    let hostBoneStartLocation = self.mChains[host_id].get_bone(connect_id).getStartLocation(); 
+                    let hostBoneStartLocation = self.mChains[host_id][connect_id].get_start_location(); 
                     self.mChains[index].set_base_location( hostBoneStartLocation ); 
                 }
 				else
                 { 
-                    let hostBoneEndLocation = self.mChains[host_id].get_bone(connect_id).getEndLocation();
+                    let hostBoneEndLocation = self.mChains[host_id][connect_id].end_location;
                     self.mChains[index].set_base_location( hostBoneEndLocation   ); 
                 }
 				
@@ -151,7 +151,7 @@ impl Structure{
 					chain::BaseboneConstraintType::LocalRotor => {
                         //TODO: turn these two into a one function.
 						// Get the direction of the bone this chain is connected to and create a rotation matrix from it.
-						let connectionBoneMatrix: Matrix3<f32> = util::createRotationMatrix( self.mChains[host_id].get_bone(connect_id).getDirectionUV() );
+						let connectionBoneMatrix: Matrix3<f32> = util::createRotationMatrix( self.mChains[host_id][connect_id].get_direction() );
 						
 						// We'll then get the basebone constraint UV and multiply it by the rotation matrix of the connected bone 
 						// to make the basebone constraint UV relative to the direction of bone it's connected to.
@@ -163,13 +163,13 @@ impl Structure{
 						// Updat the relative reference constraint UV if we hav a local hinge
 						if constraintType == chain::BaseboneConstraintType::LocalHinge
 						{
-                            let referenceAxis = self.mChains[index].get_bone(0).getJoint().getHingeReferenceAxis();
+                            let referenceAxis = self.mChains[index][0].joint.get_hinge_reference_axis();
 							self.mChains[index].set_basebone_relative_reference_constraint_uv( connectionBoneMatrix * ( referenceAxis ) );
 						}
 					},
 					chain::BaseboneConstraintType::LocalHinge => {
 						// Get the direction of the bone this chain is connected to and create a rotation matrix from it.
-						let connectionBoneMatrix: Matrix3<f32> = util::createRotationMatrix( self.mChains[host_id].get_bone(connect_id).getDirectionUV() );
+						let connectionBoneMatrix: Matrix3<f32> = util::createRotationMatrix( self.mChains[host_id][connect_id].get_direction() );
 						
 						// We'll then get the basebone constraint UV and multiply it by the rotation matrix of the connected bone 
 						// to make the basebone constraint UV relative to the direction of bone it's connected to.
@@ -181,7 +181,7 @@ impl Structure{
 						// Updat the relative reference constraint UV if we hav a local hinge
 						if constraintType == chain::BaseboneConstraintType::LocalHinge
 						{
-                            let refferenceAxis = self.mChains[index].get_bone(0).getJoint().getHingeReferenceAxis();
+                            let refferenceAxis = self.mChains[index][0].joint.get_hinge_reference_axis();
 							self.mChains[index].set_basebone_relative_reference_constraint_uv( connectionBoneMatrix * ( refferenceAxis ) );
 						}
 					},
