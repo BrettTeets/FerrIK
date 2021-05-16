@@ -58,7 +58,7 @@ impl Joint{
         clockwise_constraint_degs: Rad<f32>, anticlockwise_constraint: Rad<f32>, reference_axis: Vector3<f32>)
 	{
 		// Ensure the reference axis falls within the plane of the rotation axis (i.e. they are perpendicular, so their dot product is zero)		
-		if  !util::approximatelyEquals( rotation_axis.dot(reference_axis), 0.0, 0.01) 
+		if  !util::approximately_equals( rotation_axis.dot(reference_axis), 0.0, 0.01) 
 		{
 			//float angleDegs = Vec3f.getAngleBetweenDegs(rotationAxis, referenceAxis);
 			panic!("The reference axis must be in the plane of the hinge rotation axis - angle between them is currently: " /*+ angleDegs*/);

@@ -91,18 +91,18 @@ impl Bone{
 
     pub fn get_direction(&self) -> Vector3<f32>
 	{
-        return util::getDirectionUV(self.start_location, self.end_location);
+        return util::get_direction_uv(self.start_location, self.end_location);
 	}
 
     pub fn get_global_pitch_degs(&self) -> Rad<f32>
 	{
-        let d = util::getDirectionUV(self.start_location, self.end_location);
+        let d = util::get_direction_uv(self.start_location, self.end_location);
 		return util::getGlobalPitchDegs(d);
 	}
 
     pub fn get_global_yaw_degs(&self) -> Rad<f32>
 	{
-        let d = util::getDirectionUV(self.start_location, self.end_location);
+        let d = util::get_direction_uv(self.start_location, self.end_location);
 		return  util::getGlobalYawDegs(d);
 	}
 

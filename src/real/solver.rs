@@ -12,7 +12,7 @@ pub fn solve_ik(chain: &mut Chain, target: Vector3<f32>) -> f32{
     backward_pass(chain);
     
     chain.last_target_location = target;
-    return util::distanceBetween(chain[chain.bones.len()-1].end_location, target);
+    return util::distance_between(chain[chain.bones.len()-1].end_location, target);
 }
 
 pub fn forward_pass(chain: &mut Chain, target: Vector3<f32>){
@@ -146,8 +146,8 @@ pub fn set_backwards_basebone(chain: &mut Chain, index: usize, new_end_location:
 //This one does not precalculating the constraint angle * bone length and that will 
 //need to be done before it can become a start or end point.
 pub fn calc_ball_joint_constraint(chain: &Chain, this: usize, this_bone_uv: Vector3<f32>, 
-    other_bone_uv: Vector3<f32>) -> Vector3<f32>{
-    let angle_between: Rad<f32>    = util::getAngleBetweenDegs(other_bone_uv, this_bone_uv);
+other_bone_uv: Vector3<f32>) -> Vector3<f32>{
+    let angle_between: Rad<f32>    = util::get_angle_between(other_bone_uv, this_bone_uv);
     let constraint_angle: Rad<f32> = chain[this].get_ball_constraint();
     return constrain_rotor(this_bone_uv, other_bone_uv, angle_between, constraint_angle)
 }
@@ -170,8 +170,8 @@ pub fn calc_backwards_global_joint(chain: &Chain, index: usize,
     // If there are joint constraints, then we must honour them...
     let cw_constraint = -chain[index].joint.get_hinge_clockwise_constraint_degs();
     let acw_constraint =  chain[index].joint.get_hinge_anticlockwise_constraint_degs();
-    if  !( util::approximatelyEquals(cw_constraint.0, -joint::MAX_CONSTRAINT_ANGLE_DEGS.0, 0.001) ) &&
-                !( util::approximatelyEquals(acw_constraint.0, joint::MAX_CONSTRAINT_ANGLE_DEGS.0, 0.001) ) 
+    if  !( util::approximately_equals(cw_constraint.0, -joint::MAX_CONSTRAINT_ANGLE_DEGS.0, 0.001) ) &&
+                !( util::approximately_equals(acw_constraint.0, joint::MAX_CONSTRAINT_ANGLE_DEGS.0, 0.001) ) 
     {
         let reference_axis =  chain[index].joint.get_hinge_reference_axis();
 
@@ -199,8 +199,8 @@ pub fn calc_backwards_local_joint(chain: &Chain, index: usize, mut inner_to_oute
     // Constrain rotation about reference axis if required
     let cw_constraint  = -chain[index].joint.get_hinge_clockwise_constraint_degs();
     let acw_constraint =  chain[index].joint.get_hinge_anticlockwise_constraint_degs();
-    if  !( util::approximatelyEquals(cw_constraint.0, -joint::MAX_CONSTRAINT_ANGLE_DEGS.0, 0.001) ) &&
-                !( util::approximatelyEquals(acw_constraint.0, joint::MAX_CONSTRAINT_ANGLE_DEGS.0, 0.001) ) 
+    if  !( util::approximately_equals(cw_constraint.0, -joint::MAX_CONSTRAINT_ANGLE_DEGS.0, 0.001) ) &&
+                !( util::approximately_equals(acw_constraint.0, joint::MAX_CONSTRAINT_ANGLE_DEGS.0, 0.001) ) 
     {
         let reference_axis: Vector3<f32> = m * ( chain[index].joint.get_hinge_reference_axis() ).normalize();
 
@@ -248,7 +248,7 @@ pub fn calc_end_effector_global_hinge(chain: &Chain, index: usize) -> Vector3<f3
 
 fn calc_backwards_basebone_global_rotor(chain: &Chain, index: usize) -> Vector3<f32>{
     let inner_to_outer_uv = chain.bones[index].get_direction();				
-    let angle_between = util::getAngleBetweenDegs(chain.basebone_constraint_uv, inner_to_outer_uv);
+    let angle_between = util::get_angle_between(chain.basebone_constraint_uv, inner_to_outer_uv);
     let constraint_angle = chain.bones[index].get_ball_constraint(); 
     return constrain_rotor(inner_to_outer_uv, chain.basebone_constraint_uv, angle_between, constraint_angle)
 }
@@ -257,7 +257,7 @@ fn calc_backwards_basebone_global_rotor(chain: &Chain, index: usize) -> Vector3<
 fn calc_backwards_basebone_local_rotor(chain: &Chain, index: usize) -> Vector3<f32>{
     // Note: The mBaseboneRelativeConstraintUV is updated in the FabrikStructure3D.solveForTarget()
     let inner_to_outer_uv = chain[index].get_direction();
-    let angle_between = util::getAngleBetweenDegs(chain.basebone_relative_constraint_uv, inner_to_outer_uv);
+    let angle_between = util::get_angle_between(chain.basebone_relative_constraint_uv, inner_to_outer_uv);
     let constraint_angle = chain[index].get_ball_constraint();
     return constrain_rotor(inner_to_outer_uv, chain.basebone_relative_constraint_uv, angle_between, constraint_angle)
 }
@@ -266,7 +266,7 @@ fn constrain_rotor(inner_to_outer_uv: Vector3<f32>, constraint_uv: Vector3<f32>,
     angle_between: Rad<f32>, constraint_angle: Rad<f32>) -> Vector3<f32>{
     if angle_between > constraint_angle
     {
-        return util::getAngleLimitedUnitVectorDegs(inner_to_outer_uv, constraint_uv, constraint_angle);
+        return util::calc_angle_limited_uv(inner_to_outer_uv, constraint_uv, constraint_angle);
     }
     return inner_to_outer_uv;
 }
@@ -281,8 +281,8 @@ fn calc_backwards_basebone_global_hinge(chain: &Chain, index: usize) -> Vector3<
     let mut inner_to_outer_uv: Vector3<f32> = util::projectOntoPlane(chain[index].get_direction(), rotation_axis);
             
     // If we have a global hinge which is not freely rotating then we must constrain about the reference axis
-    if  !( util::approximatelyEquals(cw_constraint.0 , -joint::MAX_CONSTRAINT_ANGLE_DEGS.0, 0.01) &&
-            util::approximatelyEquals(acw_constraint.0,  joint::MAX_CONSTRAINT_ANGLE_DEGS.0, 0.01) ) 
+    if  !( util::approximately_equals(cw_constraint.0 , -joint::MAX_CONSTRAINT_ANGLE_DEGS.0, 0.01) &&
+            util::approximately_equals(acw_constraint.0,  joint::MAX_CONSTRAINT_ANGLE_DEGS.0, 0.01) ) 
     {        
         inner_to_outer_uv = 
             constrain_hinge(inner_to_outer_uv, joint.get_hinge_reference_axis(), rotation_axis, cw_constraint, acw_constraint)
@@ -300,8 +300,8 @@ fn calc_backwards_basebone_local_hinge(chain: &Chain, index: usize) -> Vector3<f
     let mut inner_to_outer_uv: Vector3<f32> = util::projectOntoPlane(chain[index].get_direction(), rotation_axis);
     
     // If we have a local hinge which is not freely rotating then we must constrain about the reference axis
-    if  !( util::approximatelyEquals(cw_constraint.0 , -joint::MAX_CONSTRAINT_ANGLE_DEGS.0, 0.01) &&
-            util::approximatelyEquals(acw_constraint.0,  joint::MAX_CONSTRAINT_ANGLE_DEGS.0, 0.01) ) 
+    if  !( util::approximately_equals(cw_constraint.0 , -joint::MAX_CONSTRAINT_ANGLE_DEGS.0, 0.01) &&
+            util::approximately_equals(acw_constraint.0,  joint::MAX_CONSTRAINT_ANGLE_DEGS.0, 0.01) ) 
     {
         let reference_axis: Vector3<f32> = chain.basebone_relative_reference_constraint_uv; 
         
@@ -316,11 +316,11 @@ fn constrain_hinge(inner_to_outer_uv: Vector3<f32>, reference_axis: Vector3<f32>
     let signed_angle: f32    = util::getSignedAngleBetweenDegs(reference_axis, inner_to_outer_uv, rotation_axis);
     if signed_angle > acw_constraint.0
     {	
-        return  util::rotateAboutAxis(reference_axis, acw_constraint, rotation_axis).normalize();		        		
+        return  util::rotate_about_axis(reference_axis, acw_constraint, rotation_axis).normalize();		        		
     }
     else if signed_angle < cw_constraint.0
     {	
-        return util::rotateAboutAxis(reference_axis, cw_constraint, rotation_axis).normalize();			        		
+        return util::rotate_about_axis(reference_axis, cw_constraint, rotation_axis).normalize();			        		
     }
 //if neither of the above two happened return an unmodified inner to outter uv.
 return inner_to_outer_uv;

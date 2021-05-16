@@ -1,6 +1,6 @@
 use cgmath::{Vector3, InnerSpace, Rad, Angle, Matrix3};
 
-pub fn  approximatelyEquals( a: f32,  b: f32,  tolerance: f32) -> bool
+pub fn  approximately_equals( a: f32,  b: f32,  tolerance: f32) -> bool
 {
     if (a - b).abs() <= tolerance {
         return true;
@@ -10,7 +10,7 @@ pub fn  approximatelyEquals( a: f32,  b: f32,  tolerance: f32) -> bool
     } 
 }
 
-pub fn getDirectionUV(start: Vector3<f32>, end: Vector3<f32>)-> Vector3<f32>
+pub fn get_direction_uv(start: Vector3<f32>, end: Vector3<f32>)-> Vector3<f32>
 {
     return (end - start).normalize();
 }
@@ -18,7 +18,7 @@ pub fn getDirectionUV(start: Vector3<f32>, end: Vector3<f32>)-> Vector3<f32>
 pub fn getGlobalPitchDegs(v1: Vector3<f32>) -> Rad<f32>
 {
     let xProjected: Vector3<f32> = projectOntoPlane(v1, Vector3::unit_x());
-    let pitch: Rad<f32> = getAngleBetweenDegs(-Vector3::unit_x(), xProjected);
+    let pitch: Rad<f32> = get_angle_between(-Vector3::unit_x(), xProjected);
     if xProjected.y < 0.0 {
         return -pitch;
     }
@@ -30,7 +30,7 @@ pub fn getGlobalPitchDegs(v1: Vector3<f32>) -> Rad<f32>
 pub fn getGlobalYawDegs(v1: Vector3<f32>) -> Rad<f32>
 	{
 		let yProjected: Vector3<f32> = projectOntoPlane(v1, Vector3::unit_y());
-		let yaw: Rad<f32> = getAngleBetweenDegs( -Vector3::unit_y(), yProjected);
+		let yaw: Rad<f32> = get_angle_between( -Vector3::unit_y(), yProjected);
 		if yProjected.x < 0.0 {
             return -yaw;
         }
@@ -53,7 +53,8 @@ pub fn projectOntoPlane(original: Vector3<f32>, plane_normal: Vector3<f32>) -> V
     
 }
 
-pub fn getAngleBetweenDegs(v1: cgmath::Vector3<f32>,v2: cgmath::Vector3<f32>) -> cgmath::Rad<f32>
+//Tested.
+pub fn get_angle_between(v1: cgmath::Vector3<f32>,v2: cgmath::Vector3<f32>) -> cgmath::Rad<f32>
 {
     // Note: a and b are normalised within the dotProduct method.
     let product = v1.dot(v2);
@@ -61,67 +62,63 @@ pub fn getAngleBetweenDegs(v1: cgmath::Vector3<f32>,v2: cgmath::Vector3<f32>) ->
     return cgmath::Rad(rad);
 }
 
-pub fn getAngleLimitedUnitVectorDegs(vecToLimit: Vector3<f32>,  vecBaseline: Vector3<f32>,
-    angleLimitDegs: Rad<f32>) -> cgmath::Vector3<f32>
+//Does this need to be tested?
+pub fn calc_angle_limited_uv(vec_to_limit: Vector3<f32>,  vec_baseline: Vector3<f32>,
+    angle_limit: Rad<f32>) -> cgmath::Vector3<f32>
 {
-    // Get the angle between the two vectors
-    // Note: This will ALWAYS be a positive value between 0 and 180 degrees.
-    let angleBetweenVectorsDegs: Rad<f32> = getAngleBetweenDegs(vecBaseline, vecToLimit);
+    // Note: This will ALWAYS be a positive value between 0 and 180 degrees. //Will it? Yes. I've added a Test.
+    let angle_between_vectors: Rad<f32> = get_angle_between(vec_baseline, vec_to_limit);
     
-    if angleBetweenVectorsDegs > angleLimitDegs
+    if angle_between_vectors > angle_limit
     {        	
         // The axis which we need to rotate around is the one perpendicular to the two vectors - so we're
         // rotating around the vector which is the cross-product of our two vectors.
         // Note: We do not have to worry about both vectors being the same or pointing in opposite directions
         // because if they bones are the same direction they will not have an angle greater than the angle limit,
         // and if they point opposite directions we will approach but not quite reach the precise max angle
-        // limit of 180.0f (I believe).
-        //ToDO, I dont know if this is going to compile correctly might want to break it down into descrte steps.
-        let correctionAxis: Vector3<f32> = vecBaseline.normalize().cross(vecToLimit.normalize()).normalize();
-        
-        // Our new vector is the baseline vector rotated by the max allowable angle about the correction axis
-        return rotateAboutAxis(vecBaseline, angleLimitDegs, correctionAxis).normalize();
+        // limit of 180.0f (I believe). - Caliko source.
+        let correction_axis: Vector3<f32> = vec_baseline.normalize().cross(vec_to_limit.normalize()).normalize();
+        return rotate_about_axis(vec_baseline, angle_limit, correction_axis).normalize();
     }
     else // Angle not greater than limit? Just return a normalised version of the vecToLimit
     {
         // This may already BE normalised, but we have no way of knowing without calcing the length, so best be safe and normalise.
         // TODO: If performance is an issue, then I could get the length, and if it's not approx. 1.0f THEN normalise otherwise just return as is.
-        return vecToLimit.normalize();
+        return vec_to_limit.normalize();
     }
 }
 
-pub fn rotateAboutAxis(source: Vector3<f32>,  angleRads: Rad<f32>, rotationAxis: Vector3<f32>) -> Vector3<f32>
+//Tested
+pub fn rotate_about_axis(source: Vector3<f32>,  angle: Rad<f32>, rotation_axis: Vector3<f32>) -> Vector3<f32>
 	{
-		
-
-		let sinTheta            = angleRads.sin();
-		let cosTheta            = angleRads.cos();
-		let oneMinusCosTheta  = 1.0 - cosTheta;
+		let sin_theta            = angle.sin();
+		let cos_theta            = angle.cos();
+		let one_minus_cos_theta  = 1.0 - cos_theta;
 		
 		// It's quicker to pre-calc these and reuse than calculate x * y, then y * x later (same thing).
-		let xyOne = rotationAxis.x * rotationAxis.y * oneMinusCosTheta;
-		let xzOne = rotationAxis.x * rotationAxis.z * oneMinusCosTheta;
-		let yzOne = rotationAxis.y * rotationAxis.z * oneMinusCosTheta;
+		let xy_one = rotation_axis.x * rotation_axis.y * one_minus_cos_theta;
+		let xz_one = rotation_axis.x * rotation_axis.z * one_minus_cos_theta;
+		let yz_one = rotation_axis.y * rotation_axis.z * one_minus_cos_theta;
 		
 		// Calculate rotated x-axis
-		let m00 = rotationAxis.x * rotationAxis.x * oneMinusCosTheta + cosTheta;
-		let m01 = xyOne + rotationAxis.z * sinTheta;
-		let m02 = xzOne - rotationAxis.y * sinTheta;
+		let m00 = rotation_axis.x * rotation_axis.x * one_minus_cos_theta + cos_theta;
+		let m01 = xy_one + rotation_axis.z * sin_theta;
+		let m02 = xz_one - rotation_axis.y * sin_theta;
 
 		// Calculate rotated y-axis
-		let m10 = xyOne - rotationAxis.z * sinTheta;
-		let m11 = rotationAxis.y * rotationAxis.y * oneMinusCosTheta + cosTheta;
-		let m12 = yzOne + rotationAxis.x * sinTheta;
+		let m10 = xy_one - rotation_axis.z * sin_theta;
+		let m11 = rotation_axis.y * rotation_axis.y * one_minus_cos_theta + cos_theta;
+		let m12 = yz_one + rotation_axis.x * sin_theta;
 
 		// Calculate rotated z-axis
-		let m20 = xzOne + rotationAxis.y * sinTheta;
-		let m21 = yzOne - rotationAxis.x * sinTheta;
-		let m22 = rotationAxis.z * rotationAxis.z * oneMinusCosTheta + cosTheta;
+		let m20 = xz_one + rotation_axis.y * sin_theta;
+		let m21 = yz_one - rotation_axis.x * sin_theta;
+		let m22 = rotation_axis.z * rotation_axis.z * one_minus_cos_theta + cos_theta;
 
-        let rotationMatrix: Matrix3<f32> = Matrix3::new(m00, m01, m02, m10, m11, m12, m20, m21, m22 );
+        let rotation_matrix: Matrix3<f32> = Matrix3::new(m00, m01, m02, m10, m11, m12, m20, m21, m22 );
 
 		// Multiply the source by the rotation matrix we just created to perform the rotation
-		return rotationMatrix * source;
+		return rotation_matrix * source;
 	}
 
     pub fn createRotationMatrix(referenceDirection: Vector3<f32>) -> Matrix3<f32>
@@ -145,7 +142,7 @@ pub fn rotateAboutAxis(source: Vector3<f32>,  angleRads: Rad<f32>, rotationAxis:
     pub fn getSignedAngleBetweenDegs(referenceVector: Vector3<f32>, otherVector: Vector3<f32>,
         normalVector: Vector3<f32>) -> f32
     {
-        let unsignedAngle = getAngleBetweenDegs(referenceVector, otherVector);
+        let unsignedAngle = get_angle_between(referenceVector, otherVector);
         
         //TODO look into this one. somethings up with going from rads to f32. Ends up being used ina greater than less than check
         let sign: f32 = sign(referenceVector.cross(otherVector).dot(normalVector));		
@@ -160,7 +157,7 @@ pub fn rotateAboutAxis(source: Vector3<f32>,  angleRads: Rad<f32>, rotationAxis:
     return -1.0;
 }
 
-pub fn distanceBetween(v1: Vector3<f32>, v2: Vector3<f32>) -> f32
+pub fn distance_between(v1: Vector3<f32>, v2: Vector3<f32>) -> f32
 	{
 		let dx = v2.x - v1.x;
 		let dy = v2.y - v1.y;
@@ -170,7 +167,7 @@ pub fn distanceBetween(v1: Vector3<f32>, v2: Vector3<f32>) -> f32
 
     pub fn perpendicular(a: Vector3<f32>, b: Vector3<f32>) -> bool
 	{
-		if approximatelyEquals( a.dot(b), 0.0, 0.01 )
+		if approximately_equals( a.dot(b), 0.0, 0.01 )
         {
             return true;
         }
